@@ -94,3 +94,15 @@ Stand: August 2026. Grundlage: kompletter Code (Inhalte, Lektionsaufbau, Minispi
 **Nachsprechen:** technisch eingebaut, aber nur so gut wie die Erkennung des Geräts. Auf dem iPad in Safari funktioniert es (Diktat muss aktiviert sein, Internet nötig); in der Home-Bildschirm-App hängt es von der iOS-Version ab. Der Eltern-Bereich zeigt an, ob es im aktuellen Browser verfügbar ist. Für Einzelbuchstaben ist die Erkennung unzuverlässig (Apple versteht „Be“ mal als „B“, mal als „Bee“) – für Wörter deutlich besser.
 
 **Noch offen (nächste Runde):** Kleinbuchstaben, getrennte Freischalt-Pfade, Zehnerbündel für 10–100, Badge-Erklärungen, SVG-Bilder statt Emojis.
+
+## Runde 3 – Audio-Fehler & Trainer
+
+**Überlagerte Sprache – Ursachen und Fix**
+1. Idle-/Nudge-Timer hielten *Pausen* innerhalb einer Ansage für Stille und sprachen dazwischen (die Sequenz wurde abgebrochen, der Nudge kam obendrauf). Fix: `isSpeaking()` kennt jetzt laufende Sequenzen inkl. Pausen.
+2. „Sprich nach“ lief parallel zu allem anderen (Nudge, Wiederholung, Weiter). Fix: globale Sprach-Sperre (`holdSpeech`) – während des Nachsprechens gibt es keine automatischen Ansagen, und der Weiter-Knopf ist gesperrt. Ablauf strikt nacheinander: Ansage → Aufnahme → *Vorspielen der eigenen Aufnahme* → Vorbild → Urteil.
+3. iOS „verschluckt“ manchmal das Ende einer Ansage → hängende Sequenzen / ewiges „🔊 …“. Fix: Watchdog pro Teil und Obergrenze in `whenSpeechDone`.
+4. **Hintergrund-Audio, nicht stoppbar:** das war der Wake-Lock-Fallback `nosleep.js` (spielt ein unsichtbares Video → erscheint als Medienwiedergabe, läuft nach dem Schließen weiter, stört die Sprachausgabe). Entfernt. Wach halten nur noch über die Wake-Lock-API (iOS ≥ 16.4). Zusätzlich: Sprache und Musik stoppen sofort, wenn die App in den Hintergrund geht.
+
+**Trainer für Nicht-Leser**
+- 👂 **Hören & Tippen:** nur Aufgaben ohne Lesen (Buchstabe hören → tippen, Bild → Anfangsbuchstabe, Zahl hören/zählen, Wort hören → Bild). Wörter lesen, Zahlwörter und Sätze sind raus.
+- 📖 **Lesen:** neue Mechanik „Buchstaben zusammenziehen“: Wort erscheint groß (mit Kleinschreibung darunter), wird Laut für Laut mit Hervorhebung gesprochen, dann als Ganzes; das Kind wählt das passende Bild. Nur Wörter, deren Buchstaben alle schon gelernt sind (Kapitel mit ≥ 1 Stern) – öffnet sich also automatisch, sobald es sinnvoll wird. Mit aufgenommenen Anlaut-Lauten wird das Zusammenziehen echt (statt „Be-A-eL-eL“).

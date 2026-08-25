@@ -7,8 +7,8 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Exercise, NudgeButton } from "@/components/Exercise";
 import FullscreenButton from "@/components/FullscreenButton";
-import { buildTraining } from "@/lib/lesson";
-import { rankItemsForTraining, recordAttempt, addPoints, touchDaily } from "@/lib/progress";
+import { buildTraining, readableWords } from "@/lib/lesson";
+import { rankItemsForTraining, recordAttempt, addPoints, touchDaily, loadProgress } from "@/lib/progress";
 import { speak, speakSeq, stopSpeaking, whenSpeechDone } from "@/lib/speech";
 import { unlockAudio, playFanfare } from "@/lib/sfx";
 import { confettiRain } from "@/lib/fx";
@@ -24,10 +24,13 @@ export default function Training() {
   const [right, setRight] = useState(0);
   const [started, setStarted] = useState(false);
   const [done, setDone] = useState(false);
+  const [mode, setMode] = useState("hoer");
+  const [readable, setReadable] = useState(0);
   const mistake = useRef(false);
 
   useEffect(() => {
-    setSteps(buildTraining(rankItemsForTraining(), 8));
+    setReadable(readableWords(loadProgress()).length);
+    setSteps(buildTraining(rankItemsForTraining(), 8, "hoer"));
     return () => {
       stopSpeaking();
       disableWakeLock();
@@ -39,11 +42,23 @@ export default function Training() {
     return whenSpeechDone(() => setPraiseDone(true), { startDelay: 900 });
   }, [solved]);
 
-  function start() {
+  function start(m) {
     unlockAudio();
     enableWakeLock();
+    setMode(m);
+    setSteps(buildTraining(rankItemsForTraining(), m === "lesen" ? 6 : 8, m));
+    setIdx(0);
+    setRight(0);
     setStarted(true);
-    setTimeout(() => speak("Trainer! Zeig mir, was du noch weißt!"), 300);
+    setTimeout(
+      () =>
+        speak(
+          m === "lesen"
+            ? "Lese-Trainer! Wir ziehen die Buchstaben zusammen und lesen Wörter!"
+            : "Hör-Trainer! Zeig mir, was du noch weißt!"
+        ),
+      300
+    );
   }
 
   function next() {
@@ -65,6 +80,17 @@ export default function Training() {
 
   if (!steps) return <main className="shell" />;
   const step = steps[idx];
+  if (started && !done && !step) {
+    return (
+      <main className="shell">
+        <div className="complete">
+          <div className="complete-emoji">📖</div>
+          <div className="complete-title">Noch keine Lese-Wörter</div>
+          <button className="btn btn-blue" onClick={() => router.push("/")}>KARTE 🗺️</button>
+        </div>
+      </main>
+    );
+  }
 
   if (!started)
     return (
@@ -72,12 +98,23 @@ export default function Training() {
         <div className="lesson-splash" style={{ background: "#ff9600" }}>
           <div className="splash-emoji bounce-slow">🏋️</div>
           <div className="splash-title">TRAINER</div>
-          <div className="audio-warn" style={{ background: "rgba(255,255,255,0.2)" }}>
-            8 Aufgaben – alles, was noch wackelt
+          <div className="trainer-modes">
+            <button className="btn splash-start pulse" onClick={() => start("hoer")}>
+              👂 HÖREN & TIPPEN
+            </button>
+            {readable >= 3 ? (
+              <button className="btn splash-start" style={{ background: "#ce82ff" }} onClick={() => start("lesen")}>
+                📖 LESEN ({readable} Wörter)
+              </button>
+            ) : (
+              <div className="audio-warn" style={{ background: "rgba(255,255,255,0.2)" }}>
+                📖 Lesen öffnet sich, sobald genug Buchstaben gelernt sind
+              </div>
+            )}
           </div>
-          <button className="btn splash-start pulse" onClick={start}>
-            🔊 TIPP MICH – START!
-          </button>
+          <div className="audio-warn" style={{ background: "rgba(255,255,255,0.2)" }}>
+            Hören: Buchstabe hören → tippen, Bild → Anfangs-Buchstabe, zählen. Kein Lesen nötig.
+          </div>
           <button className="btn btn-blue" style={{ marginTop: 14 }} onClick={() => router.push("/")}>
             ZURÜCK
           </button>
@@ -104,7 +141,14 @@ export default function Training() {
           <NudgeButton onClick={() => router.push("/")} nudgeText="Tippe auf den grünen Knopf!">
             WEITER 🗺️
           </NudgeButton>
-          <button className="btn btn-blue" onClick={() => window.location.reload()}>
+          <button
+            className="btn btn-blue"
+            onClick={() => {
+              setDone(false);
+              setSolved(false);
+              start(mode);
+            }}
+          >
             NOCHMAL 🔁
           </button>
         </div>

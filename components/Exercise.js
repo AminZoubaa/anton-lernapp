@@ -4,10 +4,12 @@
 // Trainer verwendet.
 import { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
-import { speak, speakSeq, whenSpeechDone, isSpeaking } from "@/lib/speech";
+import { speak, speakSeq, whenSpeechDone, isSpeaking, isSpeechHeld } from "@/lib/speech";
 import { playCorrect, playWrong } from "@/lib/sfx";
 import { randomOf, PRAISE, TRY_AGAIN, MOTIVATION } from "@/lib/phrases";
 import { burstFromElement, popIn, staggerIn } from "@/lib/fx";
+import { letterSoundText } from "@/lib/lesson";
+import { hasAudio } from "@/lib/audio";
 
 // ---------- Weiter-Button mit Anleitung bei Inaktivität ----------
 // Wartet, bis nichts mehr gesprochen wird; kommt dann keine Interaktion,
@@ -18,9 +20,11 @@ export function NudgeButton({ onClick, children, className = "btn", style, nudge
   const quiet = useRef(0);
   const nudges = useRef(0);
   const [showHand, setShowHand] = useState(false);
+  const [held, setHeld] = useState(false);
 
   useEffect(() => {
     const iv = setInterval(() => {
+      setHeld(isSpeechHeld());
       const speaking = isSpeaking();
       if (speaking) {
         quiet.current = 0;
@@ -49,8 +53,8 @@ export function NudgeButton({ onClick, children, className = "btn", style, nudge
   return (
     <span className="btn-wrap" style={style}>
       {showHand && <span className="nudge-hand">👇</span>}
-      <button ref={btnRef} className={className} onClick={onClick}>
-        {children}
+      <button ref={btnRef} className={className} onClick={onClick} disabled={held}>
+        {held ? "🎤 …" : children}
       </button>
     </span>
   );
@@ -70,8 +74,26 @@ const TAP_HINTS = {
 // Ruhiger Sprechablauf mit Pausen:
 // 1. Anweisung ("Tippe unten auf ...") – 2. Ansage ("Der Buchstabe lautet: B") –
 // 3. zum Schluss immer die eigentliche Frage.
-function speakExercise(step) {
+function speakExercise(step, setLit) {
   const parts = [];
+  if (step.readWord) {
+    // Lesen: Laut für Laut (mit Hervorhebung), dann das ganze Wort
+    parts.push({ text: "Wir lesen zusammen. Hör zu:" });
+    parts.push({ pause: 400 });
+    step.spell.forEach((ch, i) => {
+      parts.push(
+        hasAudio(`laut:${ch}`)
+          ? { audioKey: `laut:${ch}`, onStart: () => setLit?.(i) }
+          : { text: letterSoundText(ch), opts: { rate: 0.6 }, onStart: () => setLit?.(i) }
+      );
+      parts.push({ pause: 250 });
+    });
+    parts.push({ text: `${step.speakText}!`, opts: { rate: 0.7 }, onStart: () => setLit?.(-2) });
+    parts.push({ pause: 500 });
+    parts.push({ text: "Welches Bild passt dazu? Tippe darauf!", onStart: () => setLit?.(-1) });
+    speakSeq(parts);
+    return;
+  }
   const hint = TAP_HINTS[step.optionStyle];
   if (hint) {
     parts.push({ text: hint });
@@ -93,6 +115,7 @@ export function Exercise({ step, onSolved, onMistake, solved, guided = true }) {
   const [hintIdx, setHintIdx] = useState(-1);
   const [encourage, setEncourage] = useState(null);
   const [locked, setLocked] = useState(false);
+  const [lit, setLit] = useState(-1); // Lese-Übung: hervorgehobener Buchstabe (-2 = alle)
   const lockCancel = useRef(null);
   const encourageTimer = useRef(null);
   const lastAction = useRef(Date.now());
@@ -110,7 +133,7 @@ export function Exercise({ step, onSolved, onMistake, solved, guided = true }) {
     idleCount.current = 0;
     popIn(promptRef.current);
     if (optionsRef.current) staggerIn(optionsRef.current.children, { delay: 0.25 });
-    const t = setTimeout(() => speakExercise(step), 450);
+    const t = setTimeout(() => speakExercise(step, setLit), 450);
     // Hüpf-Tour nur beim allerersten Durchgang eines Kapitels – danach soll
     // das Kind selbst suchen (sonst wird nur den hüpfenden Feldern nachgetippt)
     const tour = setTimeout(() => guided && runHintTour(), 1200);
@@ -148,7 +171,7 @@ export function Exercise({ step, onSolved, onMistake, solved, guided = true }) {
         lastAction.current = Date.now();
         idleCount.current += 1;
         if (idleCount.current % 2 === 1) {
-          speakExercise(step);
+          speakExercise(step, setLit);
         } else {
           speak(randomOf(MOTIVATION));
         }
@@ -221,14 +244,28 @@ export function Exercise({ step, onSolved, onMistake, solved, guided = true }) {
             {step.prompt.emojis}
           </div>
         )}
-        {step.prompt?.word && <div className="prompt-word">{step.prompt.word}</div>}
+        {step.readWord ? (
+          <div className="read-word">
+            <div className="read-big">
+              {step.spell.map((ch, i) => (
+                <span key={i} className={lit === i || lit === -2 ? "lit" : ""}>
+                  {ch}
+                </span>
+              ))}
+            </div>
+            <div className="read-small">{step.prompt.lower}</div>
+          </div>
+        ) : (
+          step.prompt?.word && <div className="prompt-word">{step.prompt.word}</div>
+        )}
         {step.speakText && (
           <button
             className={`speak-big ${step.prompt?.speaker ? "pulse" : ""}`}
             aria-label="Nochmal hören"
             onClick={() => {
               lastAction.current = Date.now();
-              speak(step.speakText);
+              if (step.readWord) speakExercise(step, setLit);
+              else speak(step.speakText);
             }}
             style={{ marginTop: step.prompt?.speaker ? 0 : 12 }}
           >
