@@ -105,6 +105,7 @@ NUMBER_WORDS.forEach(add);
   "Los geht's!",
   "Drei", "Zwei", "Eins",
   "Hey! Neuer Buchstabe!",
+  "Wir brauchen Wasser, um die Maschine zu kühlen!", "Zu heiß! Die Maschine explodiert!",
   "Schau zu, wie der Stift läuft.", "Jetzt du! Starte beim grünen Punkt.", "Schau zu!",
   "Gut gemacht! Weiter geht's.", "Folge der grauen Bahn. Schau nochmal zu!", "Fast! Versuch es noch einmal!",
   "Nochmal von vorn. Starte beim grünen Punkt.",

@@ -93,6 +93,7 @@ export default function Rennen() {
       shake: 0, flash: 0, redFlash: 0, hitCooldown: 0, over: false,
       countdown: 3.9, reveal: { letter: target, t: 0 },
       shield: 0, slip: 0, cracks: 0, vehicle: VEHICLES[0], vehicleFx: 0,
+      heat: 0, sinceCollect: 0, nagIn: 6, splash: 0, explode: 0,
     };
     setHud({ score: 0, lives: 3, target, combo: 0, armor: 0, vehicle: "🚗", shield: false });
     setResult(null);
@@ -191,7 +192,30 @@ export default function Rennen() {
       const revealPause = s.reveal?.pauseUntil && s.reveal.t < s.reveal.pauseUntil;
       const running = s.countdown <= 0 && !revealPause;
       if (s.countdown > 0) s.countdown -= dt;
-      if (running) s.time += dt;
+      if (running) {
+        s.time += dt;
+        // Motor läuft heiß – nur gesammelte Zeichen (= Wasser) kühlen ihn.
+        // Ohne Treffer ist er nach ~30 s bei 100 % → Explosion.
+        s.heat = Math.min(100, s.heat + dt * 3.4);
+        s.sinceCollect += dt;
+        s.nagIn -= dt;
+        if (s.nagIn <= 0 && s.sinceCollect > 5) {
+          s.nagIn = 5;
+          speakSeq([{ text: "Wir brauchen Wasser, um die Maschine zu kühlen!" }, { pause: 150 }, { text: `Sammle das ${say(s.target)}!` }]);
+        }
+        if (s.heat >= 100 && !s.explode) {
+          s.explode = 1.6;
+          burst(roadL() + s.x * roadW(), s.y * H, 60, ["#ff4b4b", "#ff9600", "#333", "#ffe066"], 420);
+          s.shake = 1.2;
+          playWrong();
+          speak("Zu heiß! Die Maschine explodiert!");
+        }
+      }
+      if (s.explode) {
+        s.explode -= dt;
+        if (s.explode <= 0) { gameOver(); return; }
+      }
+      s.splash = Math.max(0, s.splash - dt);
       s.speed = running ? Math.min(260 + s.time * 6, 560) * (s.slip > 0 ? 0.5 : 1) : 0;
       s.hitCooldown = Math.max(0, s.hitCooldown - dt);
       s.shield = Math.max(0, s.shield - dt);
@@ -236,8 +260,14 @@ export default function Rennen() {
             const gain = 10 + Math.min(s.combo, 5) * 2;
             s.score += gain;
             s.flash = 0.2;
-            s.popups.push({ x: sx, y: sg.y, text: `+${gain}`, color: "#2fbf2f", life: 1 });
+            s.popups.push({ x: sx, y: sg.y, text: `+${gain} 💧`, color: "#2fbf2f", life: 1 });
             burst(sx, sg.y, 14, ["#ffc800", "#fff"], 240);
+            // Kaltes Wasser: Splash und Motor kühlt ab
+            s.heat = Math.max(0, s.heat - 35);
+            s.sinceCollect = 0;
+            s.nagIn = 6;
+            s.splash = 0.6;
+            burst(sx, sg.y, 22, ["#9ad8ff", "#1cb0f6", "#ffffff"], 300);
             if (s.combo % 3 === 0) {
               s.shield = 4;
               s.popups.push({ x: carX, y: carY - 70, text: "SCHUTZSCHILD! 🛡️", color: "#1cb0f6", life: 1.3 });
@@ -352,6 +382,26 @@ export default function Rennen() {
         ctx.fillStyle = "rgba(154,216,255,0.22)";
         ctx.beginPath(); ctx.arc(carX, carY, size * 0.85 * pulse, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
       }
+      if (s.splash > 0) {
+        ctx.strokeStyle = `rgba(28,176,246,${s.splash})`;
+        ctx.lineWidth = 10;
+        ctx.beginPath(); ctx.arc(carX, carY, (0.6 - s.splash) * 220 + 40, 0, Math.PI * 2); ctx.stroke();
+      }
+      if (s.explode > 0) {
+        ctx.fillStyle = `rgba(255,120,0,${Math.min(1, s.explode)})`;
+        ctx.beginPath(); ctx.arc(carX, carY, (1.6 - s.explode) * 260 + 30, 0, Math.PI * 2); ctx.fill();
+        ctx.font = `${size * 1.6}px serif`; ctx.fillText("💥", carX, carY);
+      }
+      // Temperaturanzeige (links), wird rot und pulsiert, je heißer
+      const gx = 16, gy = H * 0.25, gh = H * 0.5, gw = 22;
+      ctx.fillStyle = "rgba(0,0,0,0.45)"; ctx.beginPath(); ctx.roundRect(gx - 4, gy - 4, gw + 8, gh + 8, 10); ctx.fill();
+      const hf = s.heat / 100;
+      const grdH = ctx.createLinearGradient(0, gy + gh, 0, gy);
+      grdH.addColorStop(0, "#58cc02"); grdH.addColorStop(0.5, "#ffc800"); grdH.addColorStop(1, "#ff2d2d");
+      ctx.fillStyle = grdH;
+      ctx.fillRect(gx, gy + gh * (1 - hf), gw * (hf > 0.8 ? 1 + Math.sin(s.time * 15) * 0.15 : 1), gh * hf);
+      ctx.font = "20px serif"; ctx.fillText(hf > 0.8 ? "🔥" : "🌡️", gx + gw / 2, gy - 18);
+      ctx.fillText("💧", gx + gw / 2, gy + gh + 22);
       for (const p of s.particles) {
         ctx.globalAlpha = Math.max(0, p.life / 0.8);
         ctx.fillStyle = p.c;
@@ -437,7 +487,7 @@ export default function Rennen() {
             </div>
           ) : (
             <div className="points-total" style={{ maxWidth: 340 }}>
-              Das Auto folgt deinem Finger. Sammle nur das Zeichen, das oben steht! 🎁 Punkte · ⭐ Schild · ❤️ Herz · 🛡️ Rüstung · 🍌 Rutsch · 💣 Bumm. 3 Treffer in Folge = Schutzschild, mehr Punkte = besseres Fahrzeug!
+              Das Auto folgt deinem Finger. Sammle das Zeichen, das oben steht – jedes ist kaltes Wasser 💧 für den heißen Motor! Wird die Anzeige links rot, explodiert die Maschine. 🎁 Punkte · ⭐ Schild · ❤️ Herz · 🛡️ Rüstung · 🍌 Rutsch · 💣 Bumm. 3 Treffer in Folge = Schutzschild, mehr Punkte = besseres Fahrzeug!
             </div>
           )}
           <button className="btn splash-start pulse" onClick={start}>

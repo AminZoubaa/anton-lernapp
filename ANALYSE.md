@@ -163,3 +163,11 @@ Was eine wirklich gute, kostenlose Offline-Frauenstimme bräuchte: ein „medium
 - **🧩 Puzzle:** Buchstabe in seine Striche zerlegt (aus den Schreibbahnen), Teile in die graue Form schieben, rasten ein.
 - **🐾 Zoo + Tages-Sticker:** 26 Anlaut-Tiere ziehen ein, wenn der Buchstabe dreimal sofort gewusst wurde; Tagesrunde (3 wackeligste) gibt täglich einen Sticker ins Album.
 - Alle Spiele: Countdown, Ziel-Reveal, +/− Popups, Schaden-Blitz, Bestenliste, Pool A–Z + 0–9.
+
+## Runde 11 – Schreiben frei, Rennen-Hitze, Fixes
+
+- **Schreiben:** Tutorial (alle Striche nacheinander animiert) läuft nur beim ersten Mal pro Zeichen, verschwindet, sobald das Kind zu schreiben beginnt, und ist danach nur noch über 👀 HILFE erreichbar. Freies Schreiben: beliebig viele Striche, auch alles in einem Zug. Bewertung nach 1,3 s Pause oder ✓ FERTIG – jetzt mit **Reihenfolge** (Position entlang der Gesamtbahn muss vorwärts wandern), Startpunkt, Abdeckung, Genauigkeit; bei Fehlern konkreter Hinweis („Fang beim grünen Punkt 1 an“, „Achte auf die Reihenfolge“, „Bleib auf der Bahn“), nichts blockiert. Wörter mit Bild (🏠 HAUS …), Wort-**Replay** am Ende: alle Buchstaben nebeneinander, Strich für Strich nacheinander animiert, als Bild speicherbar/teilbar. Menü nutzt die ganze Breite ohne Überlauf.
+- **Rennen:** volle Breite (alte `max-width`-Regel entfernt – das waren die Balken). **Hitze-Mechanik:** Motor wird heiß (Anzeige links, ~30 s bis 100 %), jedes gesammelte Zeichen = kaltes Wasser (Splash, −35 %); ohne Treffer alle 5 s die Ansage „Wir brauchen Wasser … Sammle das X!“; bei 100 % Explosion → Spiel vorbei. Boni allein retten nicht mehr.
+- **Rakete / Angeln / Ballons:** Zielwechsel mit „Hey! Neuer Buchstabe!“, großem Reveal und 2,2 s Pause (Bildschirm geleert), damit kein Fehler passiert.
+- **Puzzle:** Bewegung 1:1 unter dem Finger (Umrechnung war falsch), Magnet-Sog ab 30 Einheiten, Einrasten ab 18.
+- **Schatzsuche** gelöscht.

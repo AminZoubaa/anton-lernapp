@@ -152,9 +152,6 @@ export default function Home() {
         <Link href="/angeln" style={{ textDecoration: "none" }}>
           <div className="game-node" style={{ background: "linear-gradient(135deg, #1cb0f6, #0b4f8a)" }}>🎣 ANGELN</div>
         </Link>
-        <Link href="/schatz" style={{ textDecoration: "none" }}>
-          <div className="game-node" style={{ background: "linear-gradient(135deg, #c9a063, #8a5a2b)" }}>💎 SCHATZ</div>
-        </Link>
         <Link href="/rakete" style={{ textDecoration: "none" }}>
           <div className="game-node" style={{ background: "linear-gradient(135deg, #2a3d7a, #0b1a3a)" }}>🚀 RAKETE</div>
         </Link>

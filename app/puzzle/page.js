@@ -35,7 +35,7 @@ export default function Puzzle() {
   function makeRound() {
     const L = LETTERS[Math.floor(Math.random() * LETTERS.length)];
     setLetter(L);
-    setPieces(STROKES[L].map((_, i) => ({ i, dx: (Math.random() - 0.5) * 140, dy: 60 + Math.random() * 60, placed: false })));
+    setPieces(STROKES[L].map((_, i) => ({ i, dx: -60 + Math.random() * 120, dy: 95 + Math.random() * 40, placed: false })));
     speakSeq([{ text: `Setze das ${L} zusammen! Schiebe die Teile in die graue Form.` }]);
   }
   function start() {
@@ -60,14 +60,22 @@ export default function Puzzle() {
   function move(e) {
     const dr = drag.current; if (!dr) return;
     const box = boxRef.current.getBoundingClientRect();
-    const k = 100 / box.width; // px → Einheiten
-    setPieces((ps) => ps.map((p) => (p.i === dr.i ? { ...p, dx: dr.ox + (e.clientX - dr.sx) * k, dy: dr.oy + (e.clientY - dr.sy) * k } : p)));
+    const k = 240 / box.width; // px → SVG-Einheiten (viewBox ist 240 breit) – 1:1 unter dem Finger
+    setPieces((ps) => ps.map((p) => {
+      if (p.i !== dr.i) return p;
+      let dx = dr.ox + (e.clientX - dr.sx) * k, dy = dr.oy + (e.clientY - dr.sy) * k;
+      // leichter Magnet-Sog schon beim Ziehen
+      const dist = Math.hypot(dx, dy);
+      if (dist < 30) { dx *= 0.5; dy *= 0.5; }
+      return { ...p, dx, dy, near: dist < 30 };
+    }));
   }
   function up(e) {
     const dr = drag.current; if (!dr) return; drag.current = null;
     setPieces((ps) => {
       const p = ps.find((x) => x.i === dr.i);
-      if (Math.hypot(p.dx, p.dy) < 9) {
+      // Magnet: in der Nähe der Zielform rastet das Teil ein
+      if (Math.hypot(p.dx, p.dy) < 18) {
         playPop(); popup(e.clientX, e.clientY, "+5", true);
         const next = ps.map((x) => (x.i === dr.i ? { ...x, dx: 0, dy: 0, placed: true } : x));
         setScore((sc) => sc + 5);
@@ -96,7 +104,7 @@ export default function Puzzle() {
       <div className="race-area" style={{ display: "flex", alignItems: "center", justifyContent: "center" }} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
         <Fx />
         <div className="puzzle-box" ref={boxRef}>
-          <svg viewBox="-70 -20 240 200" className="puzzle-svg">
+          <svg viewBox="-70 -10 240 250" className="puzzle-svg">
             <g>
               {(STROKES[letter] || []).map((st, i) => (
                 <path key={`g${i}`} d={d(st)} fill="none" stroke="#e5e5e5" strokeWidth="13" strokeLinecap="round" strokeLinejoin="round" />
@@ -104,7 +112,7 @@ export default function Puzzle() {
             </g>
             {pieces.map((p) => (
               <g key={p.i} transform={`translate(${p.dx} ${p.dy})`} className={`puzzle-piece ${p.placed ? "placed" : ""}`} onPointerDown={(e) => down(p, e)}>
-                <path d={d(STROKES[letter][p.i])} fill="none" stroke={p.placed ? "#58cc02" : ["#ff4b4b", "#1cb0f6", "#ff9600", "#ce82ff"][p.i % 4]} strokeWidth="12" strokeLinecap="round" strokeLinejoin="round" />
+                <path d={d(STROKES[letter][p.i])} fill="none" stroke={p.placed ? "#58cc02" : ["#ff4b4b", "#1cb0f6", "#ff9600", "#ce82ff"][p.i % 4]} strokeWidth={p.near ? 15 : 12} strokeLinecap="round" strokeLinejoin="round" />
               </g>
             ))}
           </svg>

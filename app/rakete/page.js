@@ -86,7 +86,7 @@ export default function Rakete() {
       const gain = 10 + Math.min(s.streak, 5) * 2; s.score += gain;
       popup(ev.clientX, ev.clientY, `+${gain}`, true);
       burstAt(ev.clientX, ev.clientY, ["🚀", "⭐", "✨"], 12);
-      if (s.hits % 5 === 0) { s.target = newTarget(s.target); reveal(s.target, "Hörst du am Anfang ein"); speak(`${it.word}! ${pickFrom(PRAISE)} Jetzt: Was fängt mit ${s.target} an?`); }
+      if (s.hits % 5 === 0) { s.target = newTarget(s.target); reveal(s.target, "Hörst du am Anfang ein"); s.paused = 2.2; s.items.forEach((f) => (f.state = "gone")); speakSeq([{ text: `${it.word}!` }, { text: "Hey! Neuer Buchstabe!" }, { pause: 150 }, { text: `Was fängt mit ${s.target} an?` }]); }
       else speak(`${it.word}! ${s.target} wie ${it.word}!`);
     } else {
       playWrong(); hurt(); s.streak = 0; s.score = Math.max(0, s.score - 5);

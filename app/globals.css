@@ -1077,14 +1077,7 @@ body {
 
 /* ---------- Buchstaben-Rennen ---------- */
 
-.race-shell {
-  max-width: 760px;
-  margin: 0 auto;
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  padding: 10px;
-}
+/* (alte, zentrierte Rennen-Hülle entfernt – Spiele nutzen die volle Breite) */
 
 .race-hud {
   display: flex;
@@ -1761,8 +1754,8 @@ body {
 .board-name { flex: 1; text-align: left; }
 .board-score { font-weight: 800; color: var(--orange); }
 .board-empty { color: #888; font-size: 0.95rem; }
-.game-canvas { display: block; width: 100%; height: 100%; touch-action: none; border-radius: 22px; }
-.race-shell { position: fixed; inset: 0; background: #1f2a44; display: flex; flex-direction: column; }
+.game-canvas { display: block; width: 100%; height: 100%; touch-action: none; border-radius: 0; }
+.race-shell { position: fixed; inset: 0; width: 100vw; height: 100dvh; max-width: none; margin: 0; padding: 0; background: #1f2a44; display: flex; flex-direction: column; }
 .race-hud { display: flex; align-items: center; gap: 8px; padding: max(8px, env(safe-area-inset-top)) 10px 6px; color: #fff; font-weight: 800; }
 .race-target { font-size: 2.2rem; background: #ffc800; color: #1f2a44; border-radius: 16px; padding: 0 16px; line-height: 1.5; box-shadow: 0 4px 0 #c79b00; }
 .race-area { flex: 1; position: relative; min-height: 0; }
@@ -1858,3 +1851,16 @@ body {
 .zoo-letter { font-weight: 800; font-size: 1rem; color: #555; }
 .sticker-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .sticker { font-size: 2rem; background: #fff; border-radius: 12px; padding: 4px 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+
+/* Schreiben-Menü: volle Breite, kein Überlauf */
+.write-shell-menu { max-width: 1100px; }
+.write-shell-menu .eltern-box { max-width: none; }
+.write-grid { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
+.write-words { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.write-words .btn { min-height: 0; padding: 10px 8px; font-size: 1.05rem; display: flex; flex-direction: column; gap: 2px; }
+.write-words .btn span { font-size: 1.8rem; }
+.write-bar { flex-wrap: wrap; }
+.write-replay { position: absolute; inset: 0; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; z-index: 8; }
+.write-replay canvas { width: 96%; max-height: 60%; }
+.heat-bar { width: 90px; height: 16px; border-radius: 8px; background: #333; overflow: hidden; border: 2px solid #fff; }
+.heat-fill { height: 100%; background: linear-gradient(90deg, #58cc02, #ffc800, #ff4b4b); }

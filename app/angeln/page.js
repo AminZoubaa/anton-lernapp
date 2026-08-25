@@ -92,7 +92,7 @@ export default function Angeln() {
       popup(ev.clientX, ev.clientY, `+${gain}`, true);
       burstAt(ev.clientX, ev.clientY, ["💦", "⭐", "✨"], 12);
       setTimeout(() => (it.state = "gone"), 600);
-      if (s.hits % 5 === 0) { s.target = newTarget(s.target); reveal(s.target, "Angle alle"); speak(`${pickFrom(PRAISE)} Jetzt alle ${say(s.target)}!`); }
+      if (s.hits % 5 === 0) { s.target = newTarget(s.target); reveal(s.target, "Angle alle"); s.paused = 2.2; s.items.forEach((f) => (f.state = "gone")); speakSeq([{ text: "Hey! Neuer Buchstabe!" }, { pause: 150 }, { text: `Angle alle ${say(s.target)}!` }]); }
       else speak(`${say(it.letter)}!`);
     } else {
       it.state = "flee"; playWrong(); hurt();

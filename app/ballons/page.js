@@ -160,7 +160,9 @@ export default function Ballons() {
       if (s.hits % 5 === 0) {
         s.target = newTarget(s.target);
         reveal(s.target);
-        speak(`${pickFrom(PRAISE)} Jetzt alle ${say(s.target)}!`);
+        s.paused = 2.2;
+        s.items = [];
+        speakSeq([{ text: "Hey! Neuer Buchstabe!" }, { pause: 150 }, { text: `Tippe alle ${say(s.target)}!` }]);
       } else speak(`${say(s.target)}!`);
     } else {
       playWrong();
