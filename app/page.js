@@ -143,6 +143,13 @@ export default function Home() {
           <span className="race-node-emoji">🏁</span>
         </div>
       </Link>
+      <Link href="/memory" style={{ textDecoration: "none" }}>
+        <div className="memory-node">
+          <span>🃏</span>
+          <span>MEMORY</span>
+          <span>🧠</span>
+        </div>
+      </Link>
       {totalStars > 0 && (
         <Link href="/training" style={{ textDecoration: "none" }}>
           <div className="trainer-node">
