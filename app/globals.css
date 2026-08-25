@@ -1686,3 +1686,25 @@ body {
   max-width: 90%;
   text-align: center;
 }
+
+/* Minispiel: Hinweis bei falscher Antwort (Punktabzug) */
+.game-penalty {
+  margin: 4px auto 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: #ff4b4b;
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.05rem;
+  width: fit-content;
+  animation: penalty-pop 0.7s ease-out;
+}
+@keyframes penalty-pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  20% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Nachsprechen-Knopf */
+.speakback.listening { animation: pulse-soft 0.9s ease-in-out infinite; background: #ff4b4b; }
+.speakback.ok { background: var(--green, #58cc02); }

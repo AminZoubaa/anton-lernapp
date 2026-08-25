@@ -49,6 +49,28 @@ function useIntro(step) {
   }, [step]);
 }
 
+// Falsche Antwort in einem Minispiel: kurzer Ton, Punktabzug, Fehler zählen
+// (kostet am Ende Sterne) und eine kleine Sperre, damit man sich nicht
+// einfach durch schnelles Tippen auf alles zur Lösung "durchklickt".
+function useWrongTap(onMistake, onPoints) {
+  const lockUntil = useRef(0);
+  const [penalty, setPenalty] = useState(false);
+  const isLocked = () => Date.now() < lockUntil.current;
+  const wrong = () => {
+    playWrong();
+    lockUntil.current = Date.now() + 700;
+    onMistake?.();
+    onPoints(-2, "−2");
+    setPenalty(true);
+    setTimeout(() => setPenalty(false), 700);
+  };
+  return { isLocked, wrong, penalty };
+}
+
+function PenaltyHint({ show }) {
+  return show ? <div className="game-penalty">Falsch! −2 🪙</div> : null;
+}
+
 function finishGame(onPoints, onDone, spokenPraise) {
   playFanfare();
   confettiRain(["⭐", "🎉", "✨", "💛"], 18);
@@ -59,10 +81,11 @@ function finishGame(onPoints, onDone, spokenPraise) {
 
 // ---------- 1. Blasen fangen ----------
 
-export function PopGame({ step, onDone, onPoints }) {
+export function PopGame({ step, onDone, onPoints, onMistake }) {
   const [popped, setPopped] = useState([]);
   const [wrongId, setWrongId] = useState(null);
   const doneRef = useRef(false);
+  const { isLocked, wrong, penalty } = useWrongTap(onMistake, onPoints);
   const counterRef = useRef(null);
   const lastAction = useIdleRepeat(step, doneRef);
 
@@ -87,7 +110,7 @@ export function PopGame({ step, onDone, onPoints }) {
 
   function tap(bubble, ev) {
     lastAction.current = Date.now();
-    if (popped.includes(bubble.id) || doneRef.current) return;
+    if (popped.includes(bubble.id) || doneRef.current || isLocked()) return;
     if (bubble.isTarget) {
       playPop();
       burstFromElement(ev.currentTarget, ["💥", "🎇", "✨", "⭐"], 18);
@@ -105,15 +128,17 @@ export function PopGame({ step, onDone, onPoints }) {
         speak(remaining === 1 ? "Super! Nur noch einer!" : `Super! Noch ${remaining}!`);
       }
     } else {
-      playWrong();
+      wrong();
       setWrongId(bubble.id);
       setTimeout(() => setWrongId(null), 500);
+      speak(`Das ist ${bubble.text}. Fange nur ${step.target}!`);
     }
   }
 
   return (
     <div className="game">
       <GameTitle icon="🫧" title={step.title} intro={step.intro} />
+      <PenaltyHint show={penalty} />
       <div className="game-sub" ref={counterRef}>
         {targetsLeft === 0 ? "🎉 Alle gefangen!" : `Noch ${targetsLeft} zu fangen!`}
       </div>
@@ -142,11 +167,12 @@ export function PopGame({ step, onDone, onPoints }) {
 
 // ---------- 2. Sortieren ----------
 
-export function SortGame({ step, onDone, onPoints }) {
+export function SortGame({ step, onDone, onPoints, onMistake }) {
   const [placed, setPlaced] = useState(0);
   const [wrongIdx, setWrongIdx] = useState(null);
   const [hintIdx, setHintIdx] = useState(null);
   const doneRef = useRef(false);
+  const { isLocked, wrong, penalty } = useWrongTap(onMistake, onPoints);
   const hintTimer = useRef(null);
 
   const scrambled = useMemo(() => {
@@ -171,7 +197,7 @@ export function SortGame({ step, onDone, onPoints }) {
 
   function tap(entry, idx, ev) {
     lastAction.current = Date.now();
-    if (entry.i < placed || doneRef.current) return;
+    if (entry.i < placed || doneRef.current || isLocked()) return;
     if (entry.i === placed) {
       playPop();
       burstFromElement(ev.currentTarget, ["⭐", "✨", "💫"], 10);
@@ -186,10 +212,10 @@ export function SortGame({ step, onDone, onPoints }) {
         speak(`${entry.v}! Jetzt suche ${step.sequence[next]}!`);
       }
     } else {
-      playWrong();
+      wrong();
       setWrongIdx(idx);
       setTimeout(() => setWrongIdx(null), 500);
-      speak(`Suche ${step.sequence[placed]}!`);
+      speak(`Das war ${entry.v}. Suche ${step.sequence[placed]}!`);
       showHint();
     }
   }
@@ -197,6 +223,7 @@ export function SortGame({ step, onDone, onPoints }) {
   return (
     <div className="game">
       <GameTitle icon="🧩" title={step.title} intro={step.intro} />
+      <PenaltyHint show={penalty} />
       <div className="game-sub">Das gelbe Feld zeigt dir, was du suchst! 👇</div>
       <div className="sort-slots">
         {step.sequence.map((v, i) => (
@@ -224,11 +251,13 @@ export function SortGame({ step, onDone, onPoints }) {
 
 // ---------- 3. Memory: Paare finden ----------
 
-export function MemoryGame({ step, onDone, onPoints }) {
+export function MemoryGame({ step, onDone, onPoints, onMistake }) {
   const [flipped, setFlipped] = useState([]);
   const [matched, setMatched] = useState([]);
   const busy = useRef(false);
+  const misses = useRef(0);
   const doneRef = useRef(false);
+  const { wrong, penalty } = useWrongTap(onMistake, onPoints);
   const lastAction = useIdleRepeat(step, doneRef);
   useIntro(step);
 
@@ -255,7 +284,11 @@ export function MemoryGame({ step, onDone, onPoints }) {
           finishGame(onPoints, onDone, `Alle Paare gefunden! ${randomOf(PRAISE)}`);
         }
       } else {
-        playWrong();
+        // Beim Memory gehören ein paar Fehlversuche dazu – erst ab dem
+        // dritten falschen Paar gibt es Abzug (sonst wird nur wild getippt).
+        misses.current += 1;
+        if (misses.current >= 3) wrong();
+        else playWrong();
         busy.current = true;
         setTimeout(() => {
           setFlipped([]);
@@ -268,6 +301,7 @@ export function MemoryGame({ step, onDone, onPoints }) {
   return (
     <div className="game">
       <GameTitle icon="🃏" title={step.title} intro={step.intro} />
+      <PenaltyHint show={penalty} />
       <div className="game-sub">
         Noch {step.pairs.length - matched.length}{" "}
         {step.pairs.length - matched.length === 1 ? "Paar" : "Paare"}!
@@ -395,18 +429,19 @@ export function TraceGame({ step, onDone, onPoints }) {
 
 // ---------- 5. Wort bauen ----------
 
-export function BuilderGame({ step, onDone, onPoints }) {
+export function BuilderGame({ step, onDone, onPoints, onMistake }) {
   const letters = useMemo(() => step.word.split(""), [step]);
   const [pos, setPos] = useState(0);
   const [usedTiles, setUsedTiles] = useState([]);
   const [wrongIdx, setWrongIdx] = useState(null);
   const doneRef = useRef(false);
+  const { isLocked, wrong, penalty } = useWrongTap(onMistake, onPoints);
   const lastAction = useIdleRepeat(step, doneRef);
   useIntro(step);
 
   function tap(tile, idx, ev) {
     lastAction.current = Date.now();
-    if (doneRef.current || usedTiles.includes(idx)) return;
+    if (doneRef.current || usedTiles.includes(idx) || isLocked()) return;
     if (tile === letters[pos]) {
       playPop();
       burstFromElement(ev.currentTarget, ["⭐", "✨"], 8);
@@ -436,16 +471,17 @@ export function BuilderGame({ step, onDone, onPoints }) {
         speak(`${tile}! Jetzt das ${letters[next]}!`);
       }
     } else {
-      playWrong();
+      wrong();
       setWrongIdx(idx);
       setTimeout(() => setWrongIdx(null), 500);
-      speak(`Suche das ${letters[pos]}!`);
+      speak(`Das war ${tile}. Suche das ${letters[pos]}!`);
     }
   }
 
   return (
     <div className="game">
       <GameTitle icon={step.isName ? "⭐" : "🧱"} title={step.title} intro={step.intro} />
+      <PenaltyHint show={penalty} />
       <div className="game-sub">
         {step.emoji} Das gelbe Feld zeigt den nächsten Buchstaben! 👇
       </div>
@@ -475,11 +511,12 @@ export function BuilderGame({ step, onDone, onPoints }) {
 
 // ---------- 6. Buchstaben-Maulwurf ----------
 
-export function MoleGame({ step, onDone, onPoints }) {
+export function MoleGame({ step, onDone, onPoints, onMistake }) {
   const [active, setActive] = useState(null); // {cell, letter}
   const [hits, setHits] = useState(0);
   const [wrongCell, setWrongCell] = useState(null);
   const doneRef = useRef(false);
+  const { isLocked, wrong, penalty } = useWrongTap(onMistake, onPoints);
   const lastAction = useIdleRepeat(step, doneRef);
   useIntro(step);
 
@@ -499,7 +536,7 @@ export function MoleGame({ step, onDone, onPoints }) {
 
   function tap(cellIdx, ev) {
     lastAction.current = Date.now();
-    if (doneRef.current || !active || active.cell !== cellIdx) return;
+    if (doneRef.current || !active || active.cell !== cellIdx || isLocked()) return;
     if (active.letter === step.target) {
       playPop();
       burstFromElement(ev.currentTarget, ["💥", "⭐"], 10);
@@ -514,10 +551,10 @@ export function MoleGame({ step, onDone, onPoints }) {
         speak(`Getroffen! Noch ${step.hitsNeeded - next}!`);
       }
     } else {
-      playWrong();
+      wrong();
       setWrongCell(cellIdx);
       setTimeout(() => setWrongCell(null), 400);
-      speak(`Das war ${active.letter}! Fange das ${step.target}!`);
+      speak(`Das war ${active.letter}! Fange nur das ${step.target}!`);
       setActive(null);
     }
   }
@@ -525,6 +562,7 @@ export function MoleGame({ step, onDone, onPoints }) {
   return (
     <div className="game">
       <GameTitle icon="🐹" title={step.title} intro={step.intro} />
+      <PenaltyHint show={penalty} />
       <div className="game-sub">
         {"⭐".repeat(hits)}
         {"☆".repeat(Math.max(step.hitsNeeded - hits, 0))} – Fange das{" "}
@@ -549,16 +587,17 @@ export function MoleGame({ step, onDone, onPoints }) {
 
 // ---------- 7. Lückenwort ----------
 
-export function GapGame({ step, onDone, onPoints }) {
+export function GapGame({ step, onDone, onPoints, onMistake }) {
   const [solvedGap, setSolvedGap] = useState(false);
   const [wrongIdx, setWrongIdx] = useState(null);
   const doneRef = useRef(false);
+  const { isLocked, wrong, penalty } = useWrongTap(onMistake, onPoints);
   const lastAction = useIdleRepeat(step, doneRef);
   useIntro(step);
 
   function tap(opt, idx, ev) {
     lastAction.current = Date.now();
-    if (doneRef.current) return;
+    if (doneRef.current || isLocked()) return;
     if (opt === step.missing) {
       playCorrect();
       burstFromElement(ev.currentTarget, ["⭐", "✨"], 12);
@@ -575,7 +614,7 @@ export function GapGame({ step, onDone, onPoints }) {
       playFanfare();
       setTimeout(() => whenSpeechDone(onDone), 800);
     } else {
-      playWrong();
+      wrong();
       setWrongIdx(idx);
       setTimeout(() => setWrongIdx(null), 500);
       speak(`${opt} passt nicht! Höre: ${step.word}!`);
@@ -585,6 +624,7 @@ export function GapGame({ step, onDone, onPoints }) {
   return (
     <div className="game">
       <GameTitle icon="🧯" title={step.title} intro={step.intro} />
+      <PenaltyHint show={penalty} />
       <div className="game-sub">{step.emoji}</div>
       <div className="gap-word">
         {step.word.split("").map((l, i) => (
@@ -667,10 +707,11 @@ export function CountTapGame({ step, onDone, onPoints }) {
 
 // ---------- 9. Blitz-Blick ----------
 
-export function FlashGame({ step, onDone, onPoints }) {
+export function FlashGame({ step, onDone, onPoints, onMistake }) {
   const [phase, setPhase] = useState("show"); // show | pick
   const [wrongIdx, setWrongIdx] = useState(null);
   const doneRef = useRef(false);
+  const { isLocked, wrong, penalty } = useWrongTap(onMistake, onPoints);
   const lastAction = useIdleRepeat(step, doneRef);
   useIntro(step);
 
@@ -685,7 +726,7 @@ export function FlashGame({ step, onDone, onPoints }) {
 
   function tap(opt, idx, ev) {
     lastAction.current = Date.now();
-    if (doneRef.current || phase !== "pick") return;
+    if (doneRef.current || phase !== "pick" || isLocked()) return;
     if (opt === step.target) {
       playCorrect();
       burstFromElement(ev.currentTarget, ["⭐", "✨", "💫"], 12);
@@ -693,10 +734,10 @@ export function FlashGame({ step, onDone, onPoints }) {
       onPoints(5, "+5");
       finishGame(onPoints, onDone, `Genau, das war ${step.spoken}! Super Gedächtnis!`);
     } else {
-      playWrong();
+      wrong();
       setWrongIdx(idx);
       setTimeout(() => setWrongIdx(null), 500);
-      speak("Schau nochmal ganz genau!");
+      speak(`Das war ${opt}. Schau nochmal ganz genau!`);
       setPhase("show");
     }
   }
@@ -704,6 +745,7 @@ export function FlashGame({ step, onDone, onPoints }) {
   return (
     <div className="game">
       <GameTitle icon="⚡" title={step.title} intro={step.intro} />
+      <PenaltyHint show={penalty} />
       {phase === "show" ? (
         <div className="flash-glyph">{step.target}</div>
       ) : (
@@ -728,15 +770,16 @@ export function FlashGame({ step, onDone, onPoints }) {
 
 // ---------- 10. Finde das Gleiche ----------
 
-export function SameGame({ step, onDone, onPoints }) {
+export function SameGame({ step, onDone, onPoints, onMistake }) {
   const [wrongIdx, setWrongIdx] = useState(null);
   const doneRef = useRef(false);
+  const { isLocked, wrong, penalty } = useWrongTap(onMistake, onPoints);
   const lastAction = useIdleRepeat(step, doneRef);
   useIntro(step);
 
   function tap(opt, idx, ev) {
     lastAction.current = Date.now();
-    if (doneRef.current) return;
+    if (doneRef.current || isLocked()) return;
     if (idx === step.correctIndex) {
       playCorrect();
       burstFromElement(ev.currentTarget, ["⭐", "✨"], 12);
@@ -744,7 +787,7 @@ export function SameGame({ step, onDone, onPoints }) {
       onPoints(5, "+5");
       finishGame(onPoints, onDone, `Genau! Zwei Mal ${step.spoken}! ${randomOf(PRAISE)}`);
     } else {
-      playWrong();
+      wrong();
       setWrongIdx(idx);
       setTimeout(() => setWrongIdx(null), 500);
       speak(`Das ist ${opt}. Suche ${step.spoken}!`);
@@ -754,6 +797,7 @@ export function SameGame({ step, onDone, onPoints }) {
   return (
     <div className="game">
       <GameTitle icon="👯" title={step.title} intro={step.intro} />
+      <PenaltyHint show={penalty} />
       <div className="flash-glyph" style={{ fontSize: "clamp(4rem, 18vw, 7rem)" }}>
         {step.target}
       </div>
@@ -774,15 +818,16 @@ export function SameGame({ step, onDone, onPoints }) {
 
 // ---------- 11. Was passt nicht? ----------
 
-export function OddGame({ step, onDone, onPoints }) {
+export function OddGame({ step, onDone, onPoints, onMistake }) {
   const [wrongIdx, setWrongIdx] = useState(null);
   const doneRef = useRef(false);
+  const { isLocked, wrong, penalty } = useWrongTap(onMistake, onPoints);
   const lastAction = useIdleRepeat(step, doneRef);
   useIntro(step);
 
   function tap(idx, ev) {
     lastAction.current = Date.now();
-    if (doneRef.current) return;
+    if (doneRef.current || isLocked()) return;
     if (idx === step.oddIndex) {
       playCorrect();
       burstFromElement(ev.currentTarget, ["🕵️", "⭐", "✨"], 12);
@@ -794,7 +839,7 @@ export function OddGame({ step, onDone, onPoints }) {
         `Richtig! Das ${step.odd} ist anders als die ${step.target}s! Super Detektiv!`
       );
     } else {
-      playWrong();
+      wrong();
       setWrongIdx(idx);
       setTimeout(() => setWrongIdx(null), 500);
       speak(`Das ist gleich! Such das Zeichen, das anders aussieht!`);
@@ -804,6 +849,7 @@ export function OddGame({ step, onDone, onPoints }) {
   return (
     <div className="game">
       <GameTitle icon="🕵️" title={step.title} intro={step.intro} />
+      <PenaltyHint show={penalty} />
       <div className="game-sub">Eins ist anders – finde es!</div>
       <div className="odd-grid">
         {step.tiles.map((tile, idx) => (

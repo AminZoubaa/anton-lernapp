@@ -27,6 +27,8 @@ import {
 import { armMusicAutostart, stopMusic, toggleMusic, isMusicOn, startMusic } from "@/lib/music";
 import { GAME_COMPONENTS } from "@/components/MiniGames";
 import FullscreenButton from "@/components/FullscreenButton";
+import SpeakBack from "@/components/SpeakBack";
+import { enableWakeLock, disableWakeLock } from "@/lib/wakeLock";
 import gsap from "gsap";
 import { burstFromElement, burstAt, confettiRain, dropIn, popIn, staggerIn } from "@/lib/fx";
 
@@ -38,7 +40,6 @@ const NUMBER_WORDS = ["NULL", "EINS", "ZWEI", "DREI", "VIER", "FÜNF", "SECHS", 
 // Vokalen – die kann die Sprachausgabe zuverlässig richtig sprechen.
 const LETTER_SOUNDS = {
   A: "aaa", E: "eee", I: "iii", O: "ooo", U: "uuu",
-  Ä: "äää", Ö: "ööö", Ü: "üüü",
 };
 
 // ---------- Weiter-Button mit Anleitung bei Inaktivität ----------
@@ -154,7 +155,7 @@ function TeachCard({ item }) {
         ...item.words.flatMap((w, i) => [
           { pause: 450 },
           {
-            text: `${item.char} wie ${w.word}!`,
+            text: item.inWord ? `${w.word}! Da ist ein ${item.char} drin!` : `${item.char} wie ${w.word}!`,
             onStart: () => setActiveWord(i),
             onEnd: () => setActiveWord(-1),
           },
@@ -162,7 +163,9 @@ function TeachCard({ item }) {
       );
       parts.push({ pause: 400 });
       parts.push({
-        text: `Hörst du das ${item.char} am Anfang? ${item.words[0].word}!`,
+        text: item.inWord
+          ? `Hörst du das ${item.char} in ${item.words[0].word}?`
+          : `Hörst du das ${item.char} am Anfang? ${item.words[0].word}!`,
         opts: { rate: 0.75 },
       });
       speakSeq(parts);
@@ -214,16 +217,28 @@ function TeachCard({ item }) {
             <button
               key={w.word}
               className={`word-chip ${activeWord === i ? "speaking" : ""}`}
-              onClick={() => speak(`${item.char} wie ${w.word}!`)}
+              onClick={() =>
+                speak(item.inWord ? `${w.word}! Mit ${item.char}!` : `${item.char} wie ${w.word}!`)
+              }
             >
               <span className="word-chip-emojis">{w.emojis.join(" ")}</span>
               <span className="word-chip-label">
-                <span className="first-letter">{w.word[0]}</span>
-                {w.word.slice(1)}
+                {(() => {
+                  // Den gelernten Buchstaben im Wort hervorheben (Anlaut oder im Wort)
+                  const at = item.inWord ? Math.max(w.word.indexOf(item.char), 0) : 0;
+                  return (
+                    <>
+                      {w.word.slice(0, at)}
+                      <span className="first-letter">{w.word[at]}</span>
+                      {w.word.slice(at + 1)}
+                    </>
+                  );
+                })()}
               </span>
             </button>
           ))}
         </div>
+        <SpeakBack expected={item.words[0].word} spoken={item.words[0].word} />
       </div>
     );
   }
@@ -249,6 +264,7 @@ function TeachCard({ item }) {
             </span>
           ))}
         </div>
+        <SpeakBack expected={item.word} spoken={item.word} />
       </div>
     );
   }
@@ -282,6 +298,7 @@ function TeachCard({ item }) {
       >
         🔊
       </button>
+      <SpeakBack expected={item.word} spoken={item.word} />
     </div>
   );
 }
@@ -518,6 +535,7 @@ function Splash({ chapter, onDone }) {
   // garantiert, dass Sprachausgabe und Töne wirklich abgespielt werden dürfen.
   function handleStart() {
     unlockAudio();
+    enableWakeLock(); // iPad soll während der Lektion nicht einschlafen
     if (isMusicOn()) startMusic();
     setStarted(true);
   }
@@ -787,6 +805,7 @@ export default function LessonClient({ id }) {
     return () => {
       stopSpeaking();
       stopMusic();
+      disableWakeLock();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
@@ -813,7 +832,7 @@ export default function LessonClient({ id }) {
   if (!steps) return <main className="shell" />;
 
   function givePoints(amount, label) {
-    setSessionPoints((p) => p + amount);
+    setSessionPoints((p) => Math.max(0, p + amount));
     addPoints(amount);
     floaterId.current += 1;
     setFloater({ id: floaterId.current, label });
@@ -930,6 +949,14 @@ export default function LessonClient({ id }) {
                 step={step}
                 onDone={nextStep}
                 onPoints={givePoints}
+                onMistake={() => {
+                  // Falsch getippt im Minispiel zählt wie ein Fehler in einer
+                  // Übung → kostet am Ende Sterne (einmal pro Spiel)
+                  if (!mistakeInStep.current) {
+                    mistakeInStep.current = true;
+                    setMistakes((m) => m + 1);
+                  }
+                }}
               />
             );
           })()

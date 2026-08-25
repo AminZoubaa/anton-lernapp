@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { speak, stopSpeaking } from "@/lib/speech";
 import { playPop, playWrong, playFanfare, unlockAudio } from "@/lib/sfx";
+import { enableWakeLock, disableWakeLock } from "@/lib/wakeLock";
 import { addPoints } from "@/lib/progress";
 import { burstAt } from "@/lib/fx";
 import { pickFrom, PRAISE } from "@/lib/phrases";
@@ -49,6 +50,7 @@ export default function RaceGame() {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       stopSpeaking();
       stopMusic();
+      disableWakeLock();
     };
   }, []);
 
@@ -71,6 +73,7 @@ export default function RaceGame() {
 
   function startGame() {
     unlockAudio();
+    enableWakeLock();
     if (isMusicOn()) startMusic();
     initGame();
     setPhase("play");
