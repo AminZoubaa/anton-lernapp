@@ -1802,3 +1802,24 @@ body {
 /* Spielelemente: sofort auf Berührung reagieren, auch während sie sich bewegen */
 .bubble, .mole-hole, .sort-bubble, .odd-tile, .counttap-item, .option-btn, .balloon, .pond-animal, .pond-pad, .memory-card { touch-action: manipulation; }
 .mole-hole { min-height: 88px; }
+
+/* Schreiben lernen */
+.write-shell { background: #f3f6fb; overscroll-behavior: none; }
+.write-area { touch-action: none; user-select: none; -webkit-user-select: none; overscroll-behavior: none; cursor: crosshair; }
+.write-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+.write-tile { position: relative; aspect-ratio: 1; border-radius: 14px; background: var(--blue); color: #fff; font-size: 1.7rem; font-weight: 800; box-shadow: 0 4px 0 var(--blue-dark); }
+.write-tile.done { background: var(--green); box-shadow: 0 4px 0 var(--green-dark); }
+.write-check { position: absolute; top: 2px; right: 6px; font-size: 0.8rem; }
+.write-words { display: flex; flex-wrap: wrap; gap: 8px; }
+.write-word { display: flex; gap: 6px; font-size: 1.6rem; font-weight: 800; }
+.write-word span { color: #bbb; }
+.write-word span.ok { color: var(--green); }
+.write-word span.now { color: var(--orange); transform: scale(1.25); display: inline-block; }
+.write-step { font-size: 0.95rem; color: #555; }
+.write-hint { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(255,255,255,0.9); border-radius: 999px; padding: 6px 14px; font-weight: 700; pointer-events: none; }
+.write-hint.go { background: var(--green); color: #fff; animation: pulse-soft 1s infinite; }
+.write-verdict { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); font-size: 1.6rem; font-weight: 900; padding: 8px 18px; border-radius: 999px; color: #fff; pointer-events: none; animation: pop-in 0.3s; }
+.write-verdict.good { background: var(--green); }
+.write-verdict.bad { background: #ff4b4b; }
+.write-bar { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; padding: 8px 8px max(10px, env(safe-area-inset-bottom)); }
+.write-bar .btn { font-size: 0.95rem; padding: 10px 12px; min-height: 0; }

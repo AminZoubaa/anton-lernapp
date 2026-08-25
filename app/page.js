@@ -149,6 +149,9 @@ export default function Home() {
         <Link href="/memory" style={{ textDecoration: "none" }}>
           <div className="game-node" style={{ background: "linear-gradient(135deg, #ce82ff, #1cb0f6)" }}>🃏 MEMORY</div>
         </Link>
+        <Link href="/schreiben" style={{ textDecoration: "none" }}>
+          <div className="game-node" style={{ background: "linear-gradient(135deg, #1f2a44, #4a6cf7)" }}>✏️ SCHREIBEN</div>
+        </Link>
       </div>
       {totalStars > 0 && (
         <Link href="/training" style={{ textDecoration: "none" }}>

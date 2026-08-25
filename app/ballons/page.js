@@ -12,6 +12,8 @@ import { enableWakeLock, disableWakeLock } from "@/lib/wakeLock";
 import { addPoints } from "@/lib/progress";
 import { pickFrom, PRAISE } from "@/lib/phrases";
 import { addScore, playableLetters, distractorFor } from "@/lib/leaderboard";
+import { NUMBER_WORDS } from "@/lib/games";
+const say = (c) => (/\d/.test(c) ? NUMBER_WORDS[+c] : c);
 import { burstAt } from "@/lib/fx";
 import Leaderboard from "@/components/Leaderboard";
 import FullscreenButton from "@/components/FullscreenButton";
@@ -74,7 +76,7 @@ export default function Ballons() {
     [3, 2, 1].forEach((n, i) => setTimeout(() => setOverlay({ kind: "count", n }), i * 700));
     setTimeout(() => setOverlay({ kind: "count", n: "LOS!" }), 2100);
     setTimeout(() => reveal(target), 2700);
-    speakSeq([{ text: "Drei" }, { pause: 500 }, { text: "Zwei" }, { pause: 500 }, { text: "Eins" }, { pause: 400 }, { text: "Los geht's!" }, { pause: 200 }, { text: `Tippe auf alle Ballons mit ${target}!` }]);
+    speakSeq([{ text: "Drei" }, { pause: 500 }, { text: "Zwei" }, { pause: 500 }, { text: "Eins" }, { pause: 400 }, { text: "Los geht's!" }, { pause: 200 }, { text: `Tippe auf alle Ballons mit ${say(target)}!` }]);
   }
 
   function end() {
@@ -158,8 +160,8 @@ export default function Ballons() {
       if (s.hits % 5 === 0) {
         s.target = newTarget(s.target);
         reveal(s.target);
-        speak(`${pickFrom(PRAISE)} Jetzt alle ${s.target}!`);
-      } else speak(s.target);
+        speak(`${pickFrom(PRAISE)} Jetzt alle ${say(s.target)}!`);
+      } else speak(`${say(s.target)}!`);
     } else {
       playWrong();
       it.state = "wrong";
@@ -170,7 +172,7 @@ export default function Ballons() {
       popup(ev.clientX, ev.clientY, "−5", false);
       setDamage((d) => d + 1);
       setTimeout(() => setDamage((d) => Math.max(0, d - 1)), 500);
-      speak(`Das ist ${it.letter}. Suche ${s.target}!`);
+      speak(`Das ist ${say(it.letter)}. Suche ${say(s.target)}!`);
     }
   }
 
@@ -197,7 +199,7 @@ export default function Ballons() {
     <div className="race-shell" style={{ background: "linear-gradient(#7fd3ff, #d9f3ff)" }}>
       <div className="race-hud" style={{ color: "#1f2a44" }}>
         <button className="close-btn" aria-label="Beenden" onClick={end}>✕</button>
-        <button className="race-target" onClick={() => speak(`Suche ${g.current.target}!`)}>🔊 {hud.target}</button>
+        <button className="race-target" onClick={() => speak(`Suche ${say(g.current.target)}!`)}>🔊 {hud.target}</button>
         <span style={{ flex: 1 }}>🪙 {hud.score} {hud.streak >= 3 && `🔥${hud.streak}`}</span>
         <span>⏱️ {hud.time}</span>
         <FullscreenButton />

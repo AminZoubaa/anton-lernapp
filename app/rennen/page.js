@@ -15,6 +15,8 @@ import { addPoints } from "@/lib/progress";
 import { pickFrom, PRAISE } from "@/lib/phrases";
 import { isMusicOn, startMusic, stopMusic } from "@/lib/music";
 import { addScore, playableLetters, distractorFor } from "@/lib/leaderboard";
+import { NUMBER_WORDS } from "@/lib/games";
+const say = (c) => (/\d/.test(c) ? NUMBER_WORDS[+c] : c);
 import Leaderboard from "@/components/Leaderboard";
 import FullscreenButton from "@/components/FullscreenButton";
 
@@ -80,7 +82,7 @@ export default function Rennen() {
     setHud({ score: 0, lives: 3, target, combo: 0 });
     setResult(null);
     setPhase("play");
-    speakSeq([{ text: "Drei" }, { pause: 650 }, { text: "Zwei" }, { pause: 650 }, { text: "Eins" }, { pause: 500 }, { text: "Los geht's!" }, { pause: 200 }, { text: `Sammle alle ${target}!` }]);
+    speakSeq([{ text: "Drei" }, { pause: 650 }, { text: "Zwei" }, { pause: 650 }, { text: "Eins" }, { pause: 500 }, { text: "Los geht's!" }, { pause: 200 }, { text: `Sammle alle ${say(target)}!` }]);
   }
 
   function gameOver() {
@@ -181,8 +183,8 @@ export default function Rennen() {
             if (s.collected % 5 === 0) {
               s.target = newTarget(s.target);
               s.reveal = { letter: s.target, t: 0, pauseUntil: 2.0 };
-              speakSeq([{ text: "Hey! Neuer Buchstabe!" }, { pause: 150 }, { text: `${s.target}!`, opts: { rate: 0.95, pitch: 1.2 } }]);
-            } else speak(`${sg.letter}!`, { rate: 1.05, pitch: 1.05 }); // nur der gefangene Buchstabe, kurz
+              speakSeq([{ text: "Hey! Neuer Buchstabe!" }, { pause: 150 }, { text: `${say(s.target)}!`, opts: { rate: 0.95, pitch: 1.2 } }]);
+            } else speak(`${say(sg.letter)}!`, { rate: 1.05, pitch: 1.05 }); // nur der gefangene Buchstabe, kurz
           } else if (s.hitCooldown <= 0) {
             playWrong();
             s.combo = 0;
@@ -197,7 +199,7 @@ export default function Rennen() {
               const v = 120 + Math.random() * 260;
               s.particles.push({ x: sx, y: sg.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.8, c: i % 2 ? "#ff9600" : "#ff4b4b" });
             }
-            speak(`Das war ${sg.letter}, nicht ${s.target}!`);
+            speak(`Das war ${say(sg.letter)}, nicht ${say(s.target)}!`);
             for (let i = 0; i < 10; i++)
               s.particles.push({ x: sx, y: sg.y, vx: (Math.random() - 0.5) * 240, vy: -Math.random() * 200, life: 0.6, c: "#ff4b4b" });
           }

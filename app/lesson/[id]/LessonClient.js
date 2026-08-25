@@ -491,7 +491,9 @@ function Completion({ chapter, stars, sessionPoints, onRetry, onHome, newBadges 
             📄 PDF
           </button>
         </div>
-        <div className="eltern-info" style={{ marginTop: 6 }}>Format 10 × 15 cm (Postkarte / Fotodrucker), 300 dpi</div>
+        <div className="eltern-info" style={{ marginTop: 6 }}>
+          10 × 15 cm mit Pokal und Medaille – Teilen öffnet das System-Menü (Fotos sichern, AirDrop, Drucken)
+        </div>
       </div>
 
       <NudgeButton
