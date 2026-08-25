@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "postbuild": "node scripts/gen-sw.mjs",
+    "audio": "node --experimental-default-type=module --import ./scripts/esm-hooks.mjs scripts/render-audio.mjs",
     "start": "next start"
   },
   "dependencies": {

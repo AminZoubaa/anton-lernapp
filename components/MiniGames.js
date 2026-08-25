@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { speak, speakSeq, whenSpeechDone } from "@/lib/speech";
+import { speak, speakSeq, whenSpeechDone, isSpeaking } from "@/lib/speech";
 import { playPop, playWrong, playFanfare, playCorrect } from "@/lib/sfx";
 import { randomOf, PRAISE, MOTIVATION } from "@/lib/phrases";
 import { burstFromElement, confettiRain, pulseEl } from "@/lib/fx";
@@ -26,7 +26,7 @@ function useIdleRepeat(step, doneRef, extra) {
   useEffect(() => {
     const iv = setInterval(() => {
       if (doneRef.current) return;
-      if (typeof window !== "undefined" && window.speechSynthesis?.speaking) {
+      if (isSpeaking()) {
         lastAction.current = Date.now();
         return;
       }

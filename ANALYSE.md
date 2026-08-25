@@ -71,3 +71,26 @@ Stand: August 2026. Grundlage: kompletter Code (Inhalte, Lektionsaufbau, Minispi
 3. Vorproduzierte Audios für Buchstabenlaute und Wörter.
 4. Tages-Wiederholung über alle Kapitel.
 5. Eigene SVG-Bilder statt Emojis.
+
+---
+
+## Runde 2 – umgesetzt
+
+**Warum 3 Sterne, aber nichts gemerkt (Diagnose):** Die Lektion prüfte Wiedererkennen unter Hilfestellung, nicht Erinnern: 3–4 Optionen (25–33 % Ratechance), hüpfende Hinweis-Tour bei jeder Aufgabe, nach einem Fehler weniger Restoptionen, 2 Sterne trotz Fehlern, Abfrage nur Minuten nach dem Lernen, nie ein Rückgriff auf ältere Buchstaben, keine eigene Produktion (Sagen/Schreiben).
+
+**Änderungen dagegen:**
+- Hinweis-Tour nur beim allerersten Durchgang eines Kapitels; bei Wiederholungen muss das Kind selbst suchen (Tour erst nach 3× Untätigkeit).
+- Weiter-Knopf „drängelt“ erst nach 4 s statt 2 s.
+- Sterne strenger: 3 = 0 Fehler, 2 = 1 Fehler, 1 = mehr (Minispiel-Fehler zählen mit).
+- „Weißt du es noch?“: jede Lektion mischt 2 Aufgaben aus früheren Kapiteln derselben Reihe ein (A/B bleiben im Spiel, wenn C/D/E dran sind).
+- **Trainer** (`/training`): 8 reine Abfrage-Aufgaben aus allen Kapiteln, priorisiert nach Fehlern und „lange nicht geübt“. Das ist der echte Test, ob etwas hängen bleibt – idealerweise am nächsten Tag spielen. Gleichzeitig der „Vokabel-Reparier-Trainer“.
+- **Eltern-Bereich** (`/eltern`, Startseite unten 3 s gedrückt halten): pro Buchstabe/Zahl/Wort: wie oft gesehen, sofort gewusst ✓, erst nach Fehler ✗, 🔥 3× in Folge, ⚠️ wackelig, zuletzt geübt. Plus Name, Stimme, Reset, Update.
+- **Update-Knopf** (Eltern-Bereich): löscht Caches + Service Worker und lädt frisch – bricht jede alte Offline-Version. Zeigt die Build-Version (Git-SHA).
+- **Offline komplett:** `scripts/gen-sw.mjs` läuft nach jedem Build und schreibt den Service Worker mit der vollständigen Liste aller Dateien (HTML, JS, CSS, Font, Icons, Audio). Nach dem ersten Öffnen läuft alles ohne Internet; neue Version = neuer Cache-Name.
+- **Vorgerenderte Audios:** `lib/audio.js` + Fallback in `lib/speech.js`. `npm run audio -- --engine openai|azure|piper` rendert alle 1 387 festen Texte als MP3 nach `public/audio/` und schreibt das Manifest. Anlaut-Laute (mmm, sss …) als eigene Aufnahmen unter `public/audio/laute/<BUCHSTABE>.mp3` – die Lernkarte spielt sie automatisch zweimal langsam ab. Die MP3s sind nicht im Repo (siehe .gitignore) – einmal lokal rendern, dann committen oder `.gitignore`-Zeile entfernen.
+
+**Empfehlung Stimme:** Azure „de-DE-SeraphinaMultilingualNeural“ oder „de-DE-KatjaNeural“ (weiblich, sehr natürlich, kostenlos bis 500 000 Zeichen/Monat) oder OpenAI „nova“. Piper-Frauenstimmen für Deutsch gibt es nur in „low“-Qualität.
+
+**Nachsprechen:** technisch eingebaut, aber nur so gut wie die Erkennung des Geräts. Auf dem iPad in Safari funktioniert es (Diktat muss aktiviert sein, Internet nötig); in der Home-Bildschirm-App hängt es von der iOS-Version ab. Der Eltern-Bereich zeigt an, ob es im aktuellen Browser verfügbar ist. Für Einzelbuchstaben ist die Erkennung unzuverlässig (Apple versteht „Be“ mal als „B“, mal als „Bee“) – für Wörter deutlich besser.
+
+**Noch offen (nächste Runde):** Kleinbuchstaben, getrennte Freischalt-Pfade, Zehnerbündel für 10–100, Badge-Erklärungen, SVG-Bilder statt Emojis.

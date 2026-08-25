@@ -1,0 +1,134 @@
+"use client";
+
+// Eltern-Bereich: Statistik pro Buchstabe/Zahl/Wort, Einstellungen, Reset,
+// Update. Zugang über "3 Sekunden gedrückt halten" auf der Startseite.
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { CHAPTERS } from "@/lib/content";
+import { itemKeyOf } from "@/lib/lesson";
+import { loadStats, loadProgress, resetAll, loadPoints } from "@/lib/progress";
+import { loadName, saveName } from "@/lib/certificate";
+import { isRecognitionSupported } from "@/lib/recognition";
+import { hasAudio, loadManifest } from "@/lib/audio";
+import UpdateButton from "@/components/UpdateButton";
+import VoicePicker from "@/components/VoicePicker";
+
+function Bar({ right, wrong }) {
+  const total = right + wrong;
+  const pct = total ? Math.round((right / total) * 100) : 0;
+  const color = total === 0 ? "#ccc" : pct >= 80 ? "#58cc02" : pct >= 50 ? "#ffc800" : "#ff4b4b";
+  return (
+    <div className="stat-bar">
+      <div className="stat-bar-fill" style={{ width: `${pct}%`, background: color }} />
+    </div>
+  );
+}
+
+export default function Eltern() {
+  const [stats, setStats] = useState({});
+  const [progress, setProgress] = useState({});
+  const [name, setName] = useState("");
+  const [points, setPoints] = useState(0);
+  const [voices, setVoices] = useState(false);
+  const [audioReady, setAudioReady] = useState(false);
+  const [recog, setRecog] = useState(false);
+
+  useEffect(() => {
+    setStats(loadStats());
+    setProgress(loadProgress());
+    setName(loadName());
+    setPoints(loadPoints());
+    setRecog(isRecognitionSupported());
+    loadManifest().then(() => setAudioReady(hasAudio("Super!")));
+  }, []);
+
+  const daysAgo = (t) => (t ? Math.floor((Date.now() - t) / 86400000) : null);
+
+  return (
+    <main className="shell eltern">
+      <header className="home-header">
+        <div className="home-title">👨‍👩‍👧 Eltern</div>
+        <div className="home-sub">Was sitzt, was wackelt – pro Buchstabe, Zahl und Wort</div>
+      </header>
+
+      <section className="eltern-box">
+        <h3>Einstellungen</h3>
+        <label>
+          Name des Kindes
+          <input
+            className="cert-name"
+            value={name}
+            maxLength={20}
+            onChange={(e) => {
+              setName(e.target.value);
+              saveName(e.target.value);
+            }}
+          />
+        </label>
+        <div className="eltern-row">
+          <button className="btn btn-blue" onClick={() => setVoices(true)}>
+            🗣️ Stimme wählen
+          </button>
+          <UpdateButton />
+        </div>
+        <div className="eltern-info">
+          Vorgerenderte Audios: {audioReady ? "✅ aktiv" : "❌ nicht vorhanden (System-Stimme)"} ·
+          Nachsprechen: {recog ? "✅ verfügbar" : "❌ in diesem Browser nicht verfügbar"} · Punkte gesamt: {points}
+        </div>
+        <button
+          className="btn"
+          style={{ background: "#ff4b4b", marginTop: 12 }}
+          onClick={() => {
+            if (window.confirm("Wirklich ALLEN Fortschritt löschen?")) {
+              resetAll();
+              window.location.href = "./";
+            }
+          }}
+        >
+          🗑️ Fortschritt zurücksetzen
+        </button>
+      </section>
+
+      {CHAPTERS.map((c) => (
+        <section className="eltern-box" key={c.id}>
+          <h3>
+            {c.emoji} {c.title}{" "}
+            <span className="eltern-stars">{"⭐".repeat(progress[c.id] || 0) || "– noch nicht gespielt"}</span>
+          </h3>
+          <table className="stat-table">
+            <tbody>
+              {c.items.map((it) => {
+                const key = itemKeyOf(it);
+                const s = stats[`${c.id}::${key}`] || { seen: 0, right: 0, wrong: 0, last: null, streak: 0 };
+                const d = daysAgo(s.last);
+                return (
+                  <tr key={key}>
+                    <td className="stat-key">{it.type === "grammar" ? it.emoji : key}</td>
+                    <td className="stat-barcell">
+                      <Bar right={s.right} wrong={s.wrong} />
+                    </td>
+                    <td className="stat-num">
+                      {s.seen === 0 ? "–" : `${s.right}✓ ${s.wrong}✗`}
+                    </td>
+                    <td className="stat-num">{s.streak >= 3 ? "🔥" : s.wrong > s.right && s.seen ? "⚠️" : ""}</td>
+                    <td className="stat-num">{d === null ? "" : d === 0 ? "heute" : `vor ${d} T.`}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </section>
+      ))}
+
+      <div className="eltern-info" style={{ marginTop: 8 }}>
+        ✓ = beim ersten Versuch richtig · ✗ = erst nach Fehler · 🔥 = 3× in Folge gewusst · ⚠️ = mehr Fehler als Treffer.
+        Als „gemerkt“ gilt ein Buchstabe erst, wenn er im Trainer nach ein paar Tagen noch sitzt.
+      </div>
+
+      {voices && <VoicePicker onClose={() => setVoices(false)} />}
+      <Link href="/" className="btn btn-blue" style={{ margin: "20px auto", display: "block", width: "fit-content" }}>
+        ⬅️ ZURÜCK
+      </Link>
+    </main>
+  );
+}

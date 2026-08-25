@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { CHAPTERS } from "@/lib/content";
 import { loadProgress, loadPoints, loadDaily } from "@/lib/progress";
 import { armMusicAutostart, stopMusic, toggleMusic, isMusicOn } from "@/lib/music";
@@ -20,6 +21,33 @@ function Stars({ count }) {
           ⭐
         </span>
       ))}
+    </div>
+  );
+}
+
+function ParentLink() {
+  // Für Kinder unerreichbar: 3 Sekunden gedrückt halten
+  const router = useRouter();
+  const timer = useRef(null);
+  const [holding, setHolding] = useState(false);
+  const start = () => {
+    setHolding(true);
+    timer.current = setTimeout(() => router.push("/eltern"), 3000);
+  };
+  const stop = () => {
+    setHolding(false);
+    clearTimeout(timer.current);
+  };
+  return (
+    <div
+      className="eltern-link"
+      onPointerDown={start}
+      onPointerUp={stop}
+      onPointerLeave={stop}
+      onPointerCancel={stop}
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      {holding ? "⏳ halten…" : "👨‍👩‍👧 Eltern: 3 Sekunden gedrückt halten"}
     </div>
   );
 }
@@ -115,6 +143,14 @@ export default function Home() {
           <span className="race-node-emoji">🏁</span>
         </div>
       </Link>
+      {totalStars > 0 && (
+        <Link href="/training" style={{ textDecoration: "none" }}>
+          <div className="trainer-node">
+            <span>🏋️</span>
+            <span>TRAINER – WAS WEISST DU NOCH?</span>
+          </div>
+        </Link>
+      )}
 
       <div className="map">
         {CHAPTERS.map((chapter, index) => {
@@ -152,6 +188,7 @@ export default function Home() {
           );
         })}
       </div>
+      <ParentLink />
     </main>
   );
 }

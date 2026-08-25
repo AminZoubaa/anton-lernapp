@@ -13,6 +13,11 @@ const nextConfig = {
   // Auf GitHub Pages liegt die App unter /<repo>/
   basePath: isGithubPages ? `/${repo}` : "",
   assetPrefix: isGithubPages ? `/${repo}/` : "",
+  // Basis-Pfad auch im Browser verfügbar (für vorgerenderte Audios, SW)
+  env: {
+    NEXT_PUBLIC_BASE_PATH: isGithubPages ? `/${repo}` : "",
+    NEXT_PUBLIC_APP_VERSION: (process.env.GITHUB_SHA || "dev").slice(0, 7),
+  },
 };
 
 export default nextConfig;
