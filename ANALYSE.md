@@ -136,3 +136,14 @@ Stand: August 2026. Grundlage: kompletter Code (Inhalte, Lektionsaufbau, Minispi
 - **Rennen & Ballon-Jagd:** Countdown 3-2-1-LOS (gesprochen + groß im Bild), Ziel-Buchstabe erscheint groß pulsierend in der Mitte („Sammle alle …“) und fliegt dann klein nach oben ins HUD – bei jedem Zielwechsel erneut. Treffer: grünes „+N“ steigt auf + Feuerwerk. Fehler: rotes „−5“ / „−1 ❤️“, Explosion, roter Rand-Blitz, Bild wackelt; beim Auto bleiben Risse und ab dem 2. Schaden Rauch.
 - **Memory (beide):** Hänger beseitigt – Zustand liegt jetzt in Refs (keine veralteten Closures bei schnellen Tipps), Reaktion auf `pointerdown` statt `click`, und liegen zwei falsche Karten offen, werden sie beim nächsten Tipp sofort umgedreht statt zu blockieren.
 - **Sterne-Abzug in Minispielen:** Fang-Spiel: falscher Buchstabe = ein Stern weg (man muss wirklich fünf *richtige* schaffen). Blasen fangen: falsche Blase = die zuletzt gefangene Blase kommt zurück. Beides zusätzlich zu −2 Münzen und dem Fehler für die Lektions-Sterne.
+
+## Runde 8 – Ehrliche Bilanz zur generierten Stimme
+
+Ich kann nicht hören. Deshalb habe ich die Dateien mit einer Spracherkennung (Whisper) gegengeprüft: Die kostenlosen deutschen Frauenstimmen von Piper (kerstin, ramona, eva_k – alle nur „low“-Qualität) werden bei Einzelwörtern und kurzen Sätzen häufig **nicht** korrekt erkannt („Wolke“ → „wach“, „Bus! Mit B!“ → „das ist die Tille“). Das deckt sich mit deinem Eindruck: Die Wörter werden verschluckt. Ein zweiter Verdacht war das Abspielen mit verändertem Tempo (iOS erzeugt dabei Artefakte) – auch das ist jetzt abgestellt.
+
+**Konsequenz (wie von dir vorgegeben):**
+- **Standard ist wieder die System-Stimme** des Geräts – für alle Ansagen, Buchstaben, Wörter, Lektionen, Spiele.
+- Die generierte Stimme bleibt nur als **Schalter im Eltern-Bereich** („experimentell“) – aus, bis sie nachweislich taugt.
+- **Anlaut-Laute (mmm, sss, b…)** kann die System-Stimme nicht erzeugen; die kommen weiterhin generiert – jetzt aus der besten verfügbaren deutschen Piper-Stimme (thorsten-high, 22 kHz), separat abschaltbar. Hörproben liegen bei.
+
+Was eine wirklich gute, kostenlose Offline-Frauenstimme bräuchte: ein „medium/high“-Piper-Modell für Deutsch mit weiblicher Sprecherin – das gibt es derzeit nicht. Möglich wäre, ein eigenes Piper-Modell aus ein paar Stunden Aufnahmen zu trainieren (ein Tag Rechenzeit auf einer GPU), oder die vorhandenen Texte von einer echten Person einsprechen zu lassen (~2 500 kurze Sätze, etwa 3–4 Stunden Aufnahme) – das wäre pädagogisch die beste Lösung und das Skript würde die Dateien genauso einbinden.

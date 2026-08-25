@@ -8,7 +8,7 @@ import { CHAPTERS } from "@/lib/content";
 import { itemKeyOf } from "@/lib/lesson";
 import { loadStats, loadProgress, resetAll, loadPoints } from "@/lib/progress";
 import { loadName, saveName } from "@/lib/certificate";
-import { hasAudio, loadManifest } from "@/lib/audio";
+import { loadManifest, getVoiceMode, setVoiceMode, getLauteOn, setLauteOn } from "@/lib/audio";
 import UpdateButton from "@/components/UpdateButton";
 import VoicePicker from "@/components/VoicePicker";
 
@@ -30,6 +30,8 @@ export default function Eltern() {
   const [points, setPoints] = useState(0);
   const [voices, setVoices] = useState(false);
   const [audioReady, setAudioReady] = useState(false);
+  const [voiceMode, setVoiceModeState] = useState("system");
+  const [lauteOn, setLauteOnState] = useState(true);
   const [dl, setDl] = useState(null); // {done,total}
 
   async function downloadAll() {
@@ -53,7 +55,9 @@ export default function Eltern() {
     setProgress(loadProgress());
     setName(loadName());
     setPoints(loadPoints());
-    loadManifest().then(() => setAudioReady(hasAudio("Super!")));
+    setVoiceModeState(getVoiceMode());
+    setLauteOnState(getLauteOn());
+    loadManifest().then((m) => setAudioReady(!!m && Object.keys(m).length > 0));
   }, []);
 
   const daysAgo = (t) => (t ? Math.floor((Date.now() - t) / 86400000) : null);
@@ -81,8 +85,34 @@ export default function Eltern() {
         </label>
         <div className="eltern-row">
           <button className="btn btn-blue" onClick={() => setVoices(true)}>
-            🗣️ Stimme wählen
+            🗣️ System-Stimme wählen
           </button>
+        </div>
+        <div className="eltern-row" style={{ alignItems: "center" }}>
+          <label className="eltern-toggle">
+            <input
+              type="checkbox"
+              checked={voiceMode === "prerendered"}
+              onChange={(e) => {
+                setVoiceMode(e.target.checked ? "prerendered" : "system");
+                setVoiceModeState(e.target.checked ? "prerendered" : "system");
+              }}
+            />
+            Generierte Offline-Stimme statt System-Stimme (experimentell – Verständlichkeit prüfen!)
+          </label>
+          <label className="eltern-toggle">
+            <input
+              type="checkbox"
+              checked={lauteOn}
+              onChange={(e) => {
+                setLauteOn(e.target.checked);
+                setLauteOnState(e.target.checked);
+              }}
+            />
+            Anlaut-Laute (mmm, sss, b…) auf Lernkarten und im Lese-Trainer abspielen
+          </label>
+        </div>
+        <div className="eltern-row">
           <UpdateButton />
           <button className="btn btn-blue" onClick={downloadAll} disabled={!!dl && dl.done < dl.total}>
             {dl ? (dl.done < dl.total ? `📥 ${dl.done}/${dl.total}` : "✅ Offline-Paket komplett") : "📥 Offline-Paket laden"}
@@ -91,7 +121,8 @@ export default function Eltern() {
         <div className="eltern-info">
           „Offline-Paket laden“ holt alle Sprach-Dateien (~24 MB) einmal in den Cache – danach spricht die App auch ohne Internet mit der gleichen Stimme.
           <br />
-          Vorgerenderte Audios: {audioReady ? "✅ aktiv" : "❌ nicht vorhanden (System-Stimme)"} · Punkte gesamt: {points}
+          Aktive Stimme: {voiceMode === "prerendered" ? "generiert (offline)" : "System-Stimme des Geräts"}
+          {audioReady ? "" : " · Audio-Paket nicht gefunden"} · Punkte gesamt: {points}
         </div>
         <button
           className="btn"

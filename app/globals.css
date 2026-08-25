@@ -1793,3 +1793,5 @@ body {
 @keyframes popup-rise { 0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); } 20% { opacity: 1; transform: translate(-50%, -70%) scale(1.2); } 100% { opacity: 0; transform: translate(-50%, -160%) scale(1); } }
 .balloon-area.damage { animation: shake 0.4s; }
 .balloon-area.damage::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle, transparent 40%, rgba(255,0,0,0.45)); pointer-events: none; z-index: 4; }
+.eltern-toggle { display: flex; gap: 10px; align-items: flex-start; font-size: 0.9rem; line-height: 1.35; }
+.eltern-toggle input { width: 22px; height: 22px; flex: none; margin-top: 1px; }
