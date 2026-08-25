@@ -153,7 +153,7 @@ export default function Zaehlen() {
         ))}
         <div className="pond-pads">
           {q.options.map((v) => (
-            <button key={v} className={`pond-pad ${wrongOpt === v ? "bubble-wrong" : ""}`} onClick={(e) => pick(v, e)}>
+            <button key={v} className={`pond-pad ${wrongOpt === v ? "bubble-wrong" : ""}`} onPointerDown={(e) => pick(v, e)}>
               {v}
             </button>
           ))}

@@ -157,7 +157,7 @@ export function PopGame({ step, onDone, onPoints, onMistake }) {
               animationDelay: `${b.delay}s`,
               animationDuration: `${b.duration}s`,
             }}
-            onClick={(e) => tap(b, e)}
+            onPointerDown={(e) => tap(b, e)}
           >
             {b.text}
           </button>
@@ -241,7 +241,7 @@ export function SortGame({ step, onDone, onPoints, onMistake }) {
             className={`sort-bubble ${entry.i < placed ? "used" : ""} ${
               wrongIdx === idx ? "bubble-wrong" : ""
             } ${hintIdx === idx ? "sort-hint" : ""}`}
-            onClick={(e) => tap(entry, idx, e)}
+            onPointerDown={(e) => tap(entry, idx, e)}
           >
             {entry.v}
           </button>
@@ -507,7 +507,7 @@ export function BuilderGame({ step, onDone, onPoints, onMistake }) {
             className={`sort-bubble ${usedTiles.includes(idx) ? "used" : ""} ${
               wrongIdx === idx ? "bubble-wrong" : ""
             }`}
-            onClick={(e) => tap(tile, idx, e)}
+            onPointerDown={(e) => tap(tile, idx, e)}
           >
             {tile}
           </button>
@@ -538,7 +538,7 @@ export function MoleGame({ step, onDone, onPoints, onMistake }) {
           ? step.target
           : step.others[Math.floor(Math.random() * step.others.length)],
       });
-    }, 1500);
+    }, 1900);
     return () => clearInterval(iv);
   }, [step]);
 
@@ -586,7 +586,7 @@ export function MoleGame({ step, onDone, onPoints, onMistake }) {
             className={`mole-hole ${active?.cell === i ? "up" : ""} ${
               wrongCell === i ? "bubble-wrong" : ""
             }`}
-            onClick={(e) => tap(i, e)}
+            onPointerDown={(e) => tap(i, e)}
           >
             {active?.cell === i ? active.letter : ""}
           </button>
@@ -649,7 +649,7 @@ export function GapGame({ step, onDone, onPoints, onMistake }) {
           <button
             key={idx}
             className={`sort-bubble ${wrongIdx === idx ? "bubble-wrong" : ""}`}
-            onClick={(e) => tap(opt, idx, e)}
+            onPointerDown={(e) => tap(opt, idx, e)}
           >
             {opt}
           </button>
@@ -703,7 +703,7 @@ export function CountTapGame({ step, onDone, onPoints }) {
           <button
             key={i}
             className={`counttap-item ${tapped.includes(i) ? "tapped" : ""}`}
-            onClick={(e) => tap(i, e)}
+            onPointerDown={(e) => tap(i, e)}
           >
             {step.emoji}
             {tapped.includes(i) && (
@@ -767,7 +767,7 @@ export function FlashGame({ step, onDone, onPoints, onMistake }) {
               <button
                 key={idx}
                 className={`sort-bubble ${wrongIdx === idx ? "bubble-wrong" : ""}`}
-                onClick={(e) => tap(opt, idx, e)}
+                onPointerDown={(e) => tap(opt, idx, e)}
               >
                 {opt}
               </button>
@@ -817,7 +817,7 @@ export function SameGame({ step, onDone, onPoints, onMistake }) {
           <button
             key={idx}
             className={`sort-bubble ${wrongIdx === idx ? "bubble-wrong" : ""}`}
-            onClick={(e) => tap(opt, idx, e)}
+            onPointerDown={(e) => tap(opt, idx, e)}
           >
             {opt}
           </button>
@@ -867,7 +867,7 @@ export function OddGame({ step, onDone, onPoints, onMistake }) {
           <button
             key={idx}
             className={`odd-tile ${wrongIdx === idx ? "bubble-wrong" : ""}`}
-            onClick={(e) => tap(idx, e)}
+            onPointerDown={(e) => tap(idx, e)}
           >
             {tile}
           </button>

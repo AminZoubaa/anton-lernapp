@@ -290,7 +290,7 @@ export function Exercise({ step, onSolved, onMistake, solved, guided = true }) {
                 ? { fontSize: "1.4rem", minHeight: 80 }
                 : undefined
             }
-            onClick={(e) => handlePick(i, e)}
+            onPointerDown={(e) => handlePick(i, e)}
           >
             <span>{opt.label}</span>
             {opt.sub && (
