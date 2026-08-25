@@ -103,6 +103,9 @@ NUMBER_WORDS.forEach(add);
   "Neuer Rekord! Wahnsinn!",
   "Hallo! So klinge ich! A wie APFEL!",
   "Los geht's!",
+  "Super! Nur noch einer!",
+  ...[2, 3, 4, 5, 6, 7, 8, 9].map((n) => `Super! Noch ${n}!`),
+  ...[1, 2, 3, 4].map((n) => `Getroffen! Noch ${n}!`),
 ].forEach(add);
 
 for (const c of CHAPTERS) {
@@ -115,6 +118,7 @@ for (const c of CHAPTERS) {
       add(`Großes ${it.char}`);
       add(`Kleines ${it.char}`);
       add(`Großes ${it.char} und kleines ${it.char}!`);
+      add(`Ein Paar! Großes ${it.char} und kleines ${it.char}!`);
       add(`Das ist das ${it.char}!`);
       add(`Der Buchstabe lautet: ${it.char}!`);
       add(`Suche das ${it.char}!`);
@@ -128,6 +132,7 @@ for (const c of CHAPTERS) {
         add(w.word);
         add(`${w.word}!`);
         add(`${it.char} wie ${w.word}!`);
+        add(`Ein Paar! ${it.char} wie ${w.word}!`);
         add(`${w.word}! Mit ${it.char}!`);
         add(`${w.word}! Da ist ein ${it.char} drin!`);
         add(`Das Wort lautet: ${w.word}!`);
@@ -137,6 +142,7 @@ for (const c of CHAPTERS) {
       }
     } else if (it.type === "number") {
       add(it.word);
+      add(`Ein Paar! ${it.word}`);
       add(`${it.word}!`);
       add(`Das ist die Zahl ${it.word}!`);
       add(`Die Zahl lautet: ${it.word}!`);
@@ -145,6 +151,7 @@ for (const c of CHAPTERS) {
       add(`Nein, da steht ${it.word}!`);
     } else if (it.type === "word") {
       add(it.word);
+      add(`Ein Paar! ${it.word}`);
       add(`${it.word}!`);
       add(`Das Bild zeigt: ${it.word}!`);
       add(`Das Wort lautet: ${it.word}!`);
@@ -170,10 +177,23 @@ const fileName = (t) => createHash("sha1").update(t).digest("hex").slice(0, 12);
 const normalize = (t) => t.trim().replace(/\s+/g, " ").toLowerCase();
 const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
+// Die App schreibt Wörter in GROSSBUCHSTABEN – Piper/espeak buchstabiert
+// solche Wörter aber ("A-P-F-E-L"). Für die Synthese daher in normale
+// Schreibweise wandeln; der Manifest-Schlüssel bleibt der Original-Text.
+// Einzelne Buchstaben (A, B …) bleiben, die sollen als Buchstabe gesprochen werden.
+export function forSpeech(text) {
+  return text.replace(/[A-ZÄÖÜ]{2,}(?:-[A-ZÄÖÜ]+)*/g, (w) =>
+    w
+      .split("-")
+      .map((p) => p[0] + p.slice(1).toLowerCase())
+      .join("-")
+  );
+}
+
 const jobs = [];
 for (const text of list) {
   const base = fileName(text);
-  if (!existsSync(join(SPEECH_DIR, base + ".mp3"))) jobs.push({ text, file: `sprache/${base}.wav` });
+  if (!existsSync(join(SPEECH_DIR, base + ".mp3"))) jobs.push({ text: forSpeech(text), file: `sprache/${base}.wav` });
 }
 for (const L of letters) {
   if (!existsSync(join(LAUTE_DIR, `${L}.mp3`))) jobs.push({ laut: L, file: `laute/${L}.wav` });
@@ -192,7 +212,12 @@ if (jobs.length) {
     const mp3 = wav.replace(/\.wav$/, ".mp3");
     // Dauerlaute (mmm, sss, aaa …) doppelt so lang ziehen – Tonhöhe bleibt
     const CONTINUANTS = "AEIOUFLMNRSVWZ";
-    const filter = j.laut && CONTINUANTS.includes(j.laut) ? ["-af", "atempo=0.5"] : [];
+    // Lautstärke auf ein einheitliches, kräftiges Niveau bringen (Piper ist leise)
+    // Piper klingt leise: leichte Kompression + Anhebung + Limiter (≈ +5 dB
+    // gefühlte Lautstärke, ohne Verzerrung) – erst dann ist die Stimme so
+    // präsent wie die System-Sprachausgabe.
+    const norm = "compand=attacks=0.01:decays=0.2:points=-80/-80|-40/-20|-20/-8|0/-4,volume=4dB,alimiter=limit=0.97";
+    const filter = ["-af", j.laut && CONTINUANTS.includes(j.laut) ? `atempo=0.5,${norm}` : norm];
     execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", wav, ...filter, "-ac", "1", "-ar", "16000", "-codec:a", "libmp3lame", "-b:a", "40k", mp3]);
     execFileSync("rm", [wav]);
     if (++n % 100 === 0) console.log(`${n} MP3s…`);
