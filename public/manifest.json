@@ -1,0 +1,26 @@
+{
+  "name": "ABC & 123 – Lernspaß",
+  "short_name": "ABC & 123",
+  "description": "Buchstaben und Zahlen lernen für Vorschulkinder",
+  "lang": "de",
+  "start_url": "/anton-lernapp/",
+  "scope": "/anton-lernapp/",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#e8f6ff",
+  "theme_color": "#1cb0f6",
+  "icons": [
+    {
+      "src": "/anton-lernapp/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/anton-lernapp/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
