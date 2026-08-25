@@ -134,12 +134,14 @@ export default function Rennen() {
       if (!s || s.over) return;
       const dt = Math.min((now - s.last) / 1000, 0.05);
       s.last = now;
-      const running = s.countdown <= 0;
-      if (!running) s.countdown -= dt;
       if (s.reveal) {
         s.reveal.t += dt;
-        if (s.reveal.t > 1.6) s.reveal = null;
+        if (s.reveal.t > 2.6) s.reveal = null;
       }
+      // Pause, solange der neue Buchstabe groß gezeigt wird
+      const revealPause = s.reveal?.pauseUntil && s.reveal.t < s.reveal.pauseUntil;
+      const running = s.countdown <= 0 && !revealPause;
+      if (s.countdown > 0) s.countdown -= dt;
       if (running) s.time += dt;
       s.speed = running ? Math.min(260 + s.time * 6, 520) : 0;
       s.hitCooldown = Math.max(0, s.hitCooldown - dt);
@@ -178,9 +180,9 @@ export default function Rennen() {
               s.particles.push({ x: sx, y: sg.y, vx: (Math.random() - 0.5) * 320, vy: -Math.random() * 320, life: 0.7, c: "#ffc800" });
             if (s.collected % 5 === 0) {
               s.target = newTarget(s.target);
-              s.reveal = { letter: s.target, t: 0 };
-              speak(`Super! Jetzt sammle alle ${s.target}!`);
-            } else speak(s.target);
+              s.reveal = { letter: s.target, t: 0, pauseUntil: 2.0 };
+              speakSeq([{ text: "Hey! Neuer Buchstabe!" }, { pause: 150 }, { text: `${s.target}!`, opts: { rate: 0.95, pitch: 1.2 } }]);
+            } else speak(`${sg.letter}!`, { rate: 1.05, pitch: 1.05 }); // nur der gefangene Buchstabe, kurz
           } else if (s.hitCooldown <= 0) {
             playWrong();
             s.combo = 0;
@@ -330,31 +332,45 @@ export default function Rennen() {
         ctx.fillText(p.text, p.x, p.y);
       }
       ctx.globalAlpha = 1;
-      // Ziel-Buchstabe: groß in der Mitte pulsieren, dann nach oben zum HUD fliegen
+      // Ziel-Buchstabe: wächst groß in der Mitte, pulsiert, dann Transition
+      // quer über den Bildschirm nach oben links ins HUD (dort steht er klein)
       if (s.reveal) {
         const t = s.reveal.t;
-        const grow = Math.min(t / 0.35, 1);
-        const fly = Math.max(0, (t - 1.0) / 0.6);
-        const size = (90 + Math.sin(t * 10) * 8) * grow * (1 - fly * 0.7);
-        const x = W / 2 + (60 - W / 2) * fly;
-        const y = H * 0.35 + (-30 - H * 0.35) * fly;
-        ctx.globalAlpha = 1 - fly * 0.5;
+        const grow = Math.min(t / 0.45, 1);
+        const ease = (k) => 1 - Math.pow(1 - k, 3);
+        const fly = ease(Math.max(0, Math.min(1, (t - 1.7) / 0.9)));
+        const base = Math.min(W, H) * 0.42;
+        const size = (base + Math.sin(t * 9) * base * 0.06) * ease(grow) * (1 - fly * 0.82);
+        // Bogen: erst nach rechts oben ausholen, dann nach links oben ins HUD
+        const x = W / 2 + Math.sin(fly * Math.PI) * W * 0.3 + (60 - W / 2) * fly;
+        const y = H * 0.4 + (-30 - H * 0.4) * fly;
+        ctx.globalAlpha = 1 - fly * 0.6;
+        // Leuchtring
+        ctx.fillStyle = "rgba(255,200,0,0.25)";
+        ctx.beginPath();
+        ctx.arc(x, y, size * 1.15, 0, Math.PI * 2);
+        ctx.fill();
         ctx.fillStyle = "#ffc800";
         ctx.beginPath();
         ctx.arc(x, y, size * 0.85, 0, Math.PI * 2);
         ctx.fill();
-        ctx.lineWidth = 8;
+        ctx.lineWidth = 10;
         ctx.strokeStyle = "#fff";
         ctx.stroke();
         ctx.fillStyle = "#1f2a44";
         ctx.font = `900 ${size}px Andika, Arial, sans-serif`;
-        ctx.fillText(s.reveal.letter, x, y + 4);
-        ctx.font = `700 ${22 * grow}px Andika, Arial, sans-serif`;
-        ctx.fillStyle = "#fff";
-        ctx.strokeStyle = "#1f2a44";
-        ctx.lineWidth = 4;
-        ctx.strokeText("Sammle alle", x, y - size * 0.95 - 16);
-        ctx.fillText("Sammle alle", x, y - size * 0.95 - 16);
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(s.reveal.letter, x, y + size * 0.05);
+        if (fly < 0.2) {
+          ctx.font = `800 ${28 * ease(grow)}px Andika, Arial, sans-serif`;
+          ctx.fillStyle = "#fff";
+          ctx.strokeStyle = "#1f2a44";
+          ctx.lineWidth = 5;
+          const label = s.reveal.pauseUntil ? "Neuer Buchstabe!" : "Sammle alle";
+          ctx.strokeText(label, x, y - size * 0.95 - 22);
+          ctx.fillText(label, x, y - size * 0.95 - 22);
+        }
         ctx.globalAlpha = 1;
       }
       // Countdown

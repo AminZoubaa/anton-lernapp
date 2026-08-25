@@ -104,6 +104,7 @@ NUMBER_WORDS.forEach(add);
   "Hallo! So klinge ich! A wie APFEL!",
   "Los geht's!",
   "Drei", "Zwei", "Eins",
+  "Hey! Neuer Buchstabe!",
   "Super! Nur noch einer!",
   ...[2, 3, 4, 5, 6, 7, 8, 9].map((n) => `Super! Noch ${n}!`),
   ...[1, 2, 3, 4].map((n) => `Getroffen! Noch ${n}!`),
