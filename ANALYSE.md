@@ -178,3 +178,8 @@ Was eine wirklich gute, kostenlose Offline-Frauenstimme bräuchte: ein „medium
 - **Puzzle:** Zeichen füllen den Bildschirm (dicke Striche), Modi Buchstaben / Zahlen / Wörter, 10 Runden. Gleich geformte Teile (Z-Balken, E-Striche …) passen in jeden freien passenden Platz, auch umgekehrt; Ziel leuchtet beim Annähern, Magnet-Sog, Einrasten.
 - **Schreiben-Menü / Eltern:** Ursache der schmalen Spalte war `margin: auto` in einer Flex-Spalte (Kinder schrumpfen auf Inhaltsbreite) – jetzt volle Breite.
 - **Wort-Animation als GIF:** Strich für Strich, teilbar/speicherbar (gifenc, rein im Browser).
+
+## Runde 13 – Schreibbahnen geprüft
+
+Alle 36 Bahnen als Bild gerendert und kontrolliert (`schreibbahnen.png`). Fehler behoben: **C** und **G** standen auf dem Kopf (Bogen lief unten herum), **U** lief über den Kopf, **6** war eine Schleife mit Strich, **S** hatte einen Knick. Zusätzlich auf Schul-Schreibrichtung umgestellt: **A** beginnt an der Spitze (zwei Striche nach unten), **M/N/V/W** alle senkrechten/schrägen Striche von oben nach unten. Bewertung mit verwackelten Test-Spuren für 12 Zeichen nachgeprüft (richtig = bestanden, fehlender Strich = durchgefallen, alles in einem Zug = bestanden).
+Durchgangs-Modus: „ALLE A–Z ÜBEN“ / „ALLE 0–9 ÜBEN“ rotiert endlos; nach einem einzelnen Zeichen erscheint „NÄCHSTER: D ➡️“ (Nochmal / Menü).

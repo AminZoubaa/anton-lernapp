@@ -50,7 +50,7 @@ export default function Schreiben() {
   const judged = useRef(false);
   const glyph = queue[qi];
   const strokes = glyph ? STROKES[glyph] || [] : [];
-  const wordEmoji = queue.length > 1 ? WORD_EMOJI[queue.join("")] || "⭐" : null;
+  const wordEmoji = queue.length > 1 && queue.length <= 8 ? WORD_EMOJI[queue.join("")] || "⭐" : null;
 
   useEffect(() => {
     setBest(loadJson(PROGRESS_KEY, {}));
@@ -77,7 +77,7 @@ export default function Schreiben() {
     beginGlyph(chars, 0, tut);
     const word = chars.join("");
     speakSeq([
-      { text: chars.length > 1 ? `Wir schreiben ${word}! ${WORD_EMOJI[word] ? "" : ""}Zuerst das ${first}.` : `Wir schreiben das ${first}!` },
+      { text: chars.length > 8 ? `Wir üben alle Zeichen! Zuerst das ${first}.` : chars.length > 1 ? `Wir schreiben ${word}! Zuerst das ${first}.` : `Wir schreiben das ${first}!` },
       { pause: 250 },
       { text: tut ? "Schau einmal zu, dann bist du dran." : "Schreib los! Hilfe gibt es mit dem Augen-Knopf." },
     ]);
@@ -218,8 +218,9 @@ export default function Schreiben() {
       speak(`${glyph}! Jetzt das ${next}.`);
     } else {
       playFanfare(); confettiRain();
-      if (queue.length > 1) { setPhase("replay"); speak(`${queue.join("")}! Du hast ein ganzes Wort geschrieben! Schau, wie es aussieht.`); }
-      else { speak(`${glyph}! Du kannst es schreiben!`); setVerdict({ score: 1, text: `🎉 ${glyph} geschafft!` }); setTimeout(() => setPhase("menu"), 1800); }
+      if (queue.length > 8) { speak("Alles geschafft! Und nochmal von vorn!"); setTimeout(() => start(queue), 1500); }
+      else if (queue.length > 1) { setPhase("replay"); speak(`${queue.join("")}! Du hast ein ganzes Wort geschrieben! Schau, wie es aussieht.`); }
+      else { speak(`${glyph}! Du kannst es schreiben! Weiter mit dem nächsten?`); setVerdict({ score: 1, text: `🎉 ${glyph} geschafft!` }); setPhase("next"); }
     }
   }
 
@@ -312,10 +313,10 @@ export default function Schreiben() {
           <div className="home-title">✏️ Schreiben</div>
           <div className="home-sub">Tippe einen Buchstaben, eine Zahl oder ein Wort</div>
         </header>
-        <section className="eltern-box"><h3>Buchstaben</h3>
+        <section className="eltern-box"><h3>Buchstaben <button className="btn" style={{ minHeight: 0, padding: "6px 12px", fontSize: "0.9rem", marginLeft: 8 }} onClick={() => start(LETTERS)}>🔤 ALLE A–Z ÜBEN</button></h3>
           <div className="write-grid">{LETTERS.map((c) => <button key={c} className={`write-tile ${best[c] ? "done" : ""}`} onClick={() => start([c])}>{c}{best[c] > 0 && <span className="write-check">✓</span>}</button>)}</div>
         </section>
-        <section className="eltern-box"><h3>Zahlen</h3>
+        <section className="eltern-box"><h3>Zahlen <button className="btn" style={{ minHeight: 0, padding: "6px 12px", fontSize: "0.9rem", marginLeft: 8 }} onClick={() => start(DIGITS)}>🔢 ALLE 0–9 ÜBEN</button></h3>
           <div className="write-grid">{DIGITS.map((c) => <button key={c} className={`write-tile ${best[c] ? "done" : ""}`} onClick={() => start([c])}>{c}</button>)}</div>
         </section>
         <section className="eltern-box"><h3>Wörter</h3>
@@ -343,12 +344,34 @@ export default function Schreiben() {
     );
   if (phase === "replay-reset") return <div className="race-shell write-shell" />;
 
+  if (phase === "next") {
+    const list = DIGITS.includes(glyph) ? DIGITS : LETTERS;
+    const nxt = list[(list.indexOf(glyph) + 1) % list.length];
+    return (
+      <div className="race-shell write-shell">
+        <div className="write-replay">
+          <div className="complete-emoji" style={{ fontSize: "5rem" }}>🎉</div>
+          <div className="memory-won-title">{glyph} geschafft!</div>
+          <div className="write-bar">
+            <button className="btn" onClick={() => start([nxt])}>NÄCHSTER: {nxt} ➡️</button>
+            <button className="btn btn-blue" onClick={() => start([glyph])}>NOCHMAL {glyph} 🔁</button>
+            <button className="btn btn-blue" onClick={() => setPhase("menu")}>MENÜ</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="race-shell write-shell">
       <div className="race-hud" style={{ color: "#1f2a44" }}>
         <button className="close-btn" aria-label="Beenden" onClick={() => { stopSpeaking(); setPhase("menu"); }}>✕</button>
         {wordEmoji && <span style={{ fontSize: "2rem" }}>{wordEmoji}</span>}
-        <div className="write-word">{queue.map((c, i) => <span key={i} className={i < qi ? "ok" : i === qi ? "now" : ""}>{c}</span>)}</div>
+        {queue.length > 8 ? (
+          <div className="write-word"><span className="now">{glyph}</span><span style={{ fontSize: "1rem", color: "#666" }}>{qi + 1}/{queue.length}</span></div>
+        ) : (
+          <div className="write-word">{queue.map((c, i) => <span key={i} className={i < qi ? "ok" : i === qi ? "now" : ""}>{c}</span>)}</div>
+        )}
         <span style={{ flex: 1 }} />
         <span className="write-step">{strokes.length} {strokes.length === 1 ? "Strich" : "Striche"}</span>
       </div>
