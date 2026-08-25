@@ -1,319 +1,336 @@
 "use client";
 
-// 🏎️ Buchstaben-Rennen: Hauptspiel über das ganze Alphabet.
-// Sammle die richtigen Buchstaben, um den Tank zu füllen –
-// falsche Buchstaben explodieren, beschädigen das Auto und kosten Sprit!
-
+// Buchstaben-Rennen – eigene, leichte Canvas-Engine (ein requestAnimationFrame,
+// keine DOM-Updates pro Frame, DPR-skaliert). Lenken: Finger irgendwo auf die
+// Straße legen und ziehen – das Auto folgt stufenlos der Fingerposition.
+// Ziel-Buchstabe oben groß und gesprochen; auf der Straße kommen Schilder mit
+// Buchstaben. Ähnliche Buchstaben (E/F, M/N, O/Q …) kommen bewusst als
+// Ablenker, damit man wirklich hinschauen muss. 3 Leben, Tempo steigt.
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { speak, stopSpeaking } from "@/lib/speech";
+import { speak, speakSeq, stopSpeaking } from "@/lib/speech";
 import { playPop, playWrong, playFanfare, unlockAudio } from "@/lib/sfx";
 import { enableWakeLock, disableWakeLock } from "@/lib/wakeLock";
 import { addPoints } from "@/lib/progress";
-import { burstAt } from "@/lib/fx";
 import { pickFrom, PRAISE } from "@/lib/phrases";
-import { ALL_LETTERS } from "@/lib/content";
 import { isMusicOn, startMusic, stopMusic } from "@/lib/music";
+import { addScore, playableLetters, distractorFor } from "@/lib/leaderboard";
+import Leaderboard from "@/components/Leaderboard";
 import FullscreenButton from "@/components/FullscreenButton";
 
-const HIGHSCORE_KEY = "anton-lernapp-race-highscore";
-const LANES = 3;
+const GAME = "rennen";
+const COLORS = ["#ff4b4b", "#1cb0f6", "#58cc02", "#ff9600", "#ce82ff", "#ff86d0"];
 
-function randLetter(except) {
-  let l;
-  do {
-    l = ALL_LETTERS[Math.floor(Math.random() * 26)]; // A-Z ohne Umlaute
-  } while (l === except);
-  return l;
-}
-
-function loadHighscore() {
-  if (typeof window === "undefined") return 0;
-  const n = parseInt(window.localStorage.getItem(HIGHSCORE_KEY) || "0", 10);
-  return Number.isFinite(n) ? n : 0;
-}
-
-export default function RaceGame() {
+export default function Rennen() {
   const router = useRouter();
-  const [phase, setPhase] = useState("start"); // start | play | over
-  const [, setTick] = useState(0);
-  const [shaking, setShaking] = useState(false);
-  const arenaRef = useRef(null);
-  const g = useRef(null); // Spielzustand
-  const rafRef = useRef(null);
-  const idRef = useRef(0);
-  const [best, setBest] = useState(0);
+  const canvasRef = useRef(null);
+  const areaRef = useRef(null);
+  const g = useRef(null);
+  const raf = useRef(0);
+  const [phase, setPhase] = useState("menu"); // menu | play | over
+  const [hud, setHud] = useState({ score: 0, lives: 3, target: "A", combo: 0 });
+  const [result, setResult] = useState(null);
+  const pool = useRef(["A", "B", "C", "D", "E"]);
 
   useEffect(() => {
-    setBest(loadHighscore());
+    pool.current = playableLetters();
     return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      cancelAnimationFrame(raf.current);
       stopSpeaking();
       stopMusic();
       disableWakeLock();
     };
   }, []);
 
-  function initGame() {
-    g.current = {
-      fuel: 100,
-      score: 0,
-      combo: 0,
-      damage: 0,
-      collected: 0,
-      target: randLetter(),
-      letters: [],
-      lane: 1,
-      speed: 150,
-      spawnIn: 0.6,
-      time: 0,
-      last: performance.now(),
-    };
+  function newTarget(prev) {
+    const p = pool.current.filter((c) => c !== prev);
+    return p[Math.floor(Math.random() * p.length)];
   }
 
-  function startGame() {
+  function start() {
     unlockAudio();
     enableWakeLock();
     if (isMusicOn()) startMusic();
-    initGame();
+    const target = newTarget(null);
+    g.current = {
+      x: 0.5, // Auto-Position 0..1 (Straßenbreite)
+      fingerX: null,
+      speed: 260,
+      score: 0,
+      lives: 3,
+      combo: 0,
+      collected: 0,
+      target,
+      signs: [],
+      particles: [],
+      spawnIn: 0.8,
+      stripe: 0,
+      time: 0,
+      last: performance.now(),
+      shake: 0,
+      flash: 0,
+      hitCooldown: 0,
+      over: false,
+    };
+    setHud({ score: 0, lives: 3, target, combo: 0 });
+    setResult(null);
     setPhase("play");
-    speak(`Los geht's! Sammle alle ${g.current.target}! Tippe auf die Spur, um zu lenken!`);
+    speakSeq([{ text: "Los geht's!" }, { text: `Sammle alle ${target}!` }, { text: "Zieh mit dem Finger, um zu lenken!" }]);
   }
 
-  // ---------- Spiel-Schleife ----------
+  function gameOver() {
+    const s = g.current;
+    if (!s || s.over) return;
+    s.over = true;
+    cancelAnimationFrame(raf.current);
+    stopMusic();
+    playFanfare();
+    addPoints(Math.round(s.score / 5));
+    const rank = addScore(GAME, s.score);
+    setResult({ score: s.score, collected: s.collected, rank });
+    setPhase("over");
+    setTimeout(() => speak(rank === 1 ? `Neuer Rekord! ${s.score} Punkte!` : `${s.score} Punkte! ${pickFrom(PRAISE)}`), 400);
+  }
 
+  // ---------- Eingabe: Finger = Lenkrad ----------
+  function pointer(e) {
+    const s = g.current;
+    if (!s || s.over) return;
+    const rect = areaRef.current.getBoundingClientRect();
+    s.fingerX = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  }
+
+  // ---------- Schleife ----------
   useEffect(() => {
     if (phase !== "play") return;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    let W = 0;
+    let H = 0;
+    const resize = () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      W = areaRef.current.clientWidth;
+      H = areaRef.current.clientHeight;
+      canvas.width = W * dpr;
+      canvas.height = H * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    resize();
+    window.addEventListener("resize", resize);
+
+    const roadL = () => W * 0.08;
+    const roadR = () => W * 0.92;
+    const roadW = () => roadR() - roadL();
+    const carW = () => Math.min(74, roadW() / 5);
+    const signR = () => Math.min(34, roadW() / 9);
 
     const loop = (now) => {
       const s = g.current;
-      const arena = arenaRef.current;
-      if (!s || !arena) return;
+      if (!s || s.over) return;
       const dt = Math.min((now - s.last) / 1000, 0.05);
       s.last = now;
       s.time += dt;
+      s.speed = Math.min(260 + s.time * 6, 520);
+      s.hitCooldown = Math.max(0, s.hitCooldown - dt);
 
-      // Sprit verbraucht sich beim Fahren
-      s.fuel -= (3 + s.damage * 0.8) * dt;
-      s.speed = Math.min(150 + s.time * 4, 340);
+      // Lenken: sanft zur Fingerposition
+      if (s.fingerX !== null) s.x += (s.fingerX - s.x) * Math.min(1, dt * 12);
 
-      // Buchstaben spawnen
+      // Spawnen: 55 % Ziel, sonst (ähnlicher) Ablenker
       s.spawnIn -= dt;
       if (s.spawnIn <= 0) {
-        s.spawnIn = Math.max(0.72, 1.35 - s.time * 0.012);
-        const isTarget = Math.random() < 0.5;
-        s.letters.push({
-          id: idRef.current++,
-          lane: Math.floor(Math.random() * LANES),
-          letter: isTarget ? s.target : randLetter(s.target),
-          y: -70,
-        });
+        s.spawnIn = Math.max(0.55, 1.2 - s.time * 0.01);
+        const isTarget = Math.random() < 0.55;
+        const letter = isTarget ? s.target : distractorFor(s.target, pool.current);
+        s.signs.push({ x: 0.12 + Math.random() * 0.76, y: -60, letter, color: COLORS[Math.floor(Math.random() * COLORS.length)], hit: false });
       }
 
-      const H = arena.clientHeight;
-      const rect = arena.getBoundingClientRect();
-      const laneX = (lane) => rect.left + (rect.width * (lane + 0.5)) / LANES;
-
-      // Bewegen + Kollision
-      for (const l of s.letters) l.y += s.speed * dt;
+      const carX = roadL() + s.x * roadW();
+      const carY = H - 90;
+      for (const sg of s.signs) sg.y += s.speed * dt;
       const keep = [];
-      for (const l of s.letters) {
-        const hit = l.lane === s.lane && l.y > H - 170 && l.y < H - 60;
-        if (hit) {
-          if (l.letter === s.target) {
+      for (const sg of s.signs) {
+        const sx = roadL() + sg.x * roadW();
+        const dx = Math.abs(sx - carX);
+        const dy = Math.abs(sg.y - carY);
+        if (!sg.hit && dx < carW() * 0.7 && dy < 46) {
+          sg.hit = true;
+          if (sg.letter === s.target) {
             playPop();
-            burstAt(laneX(l.lane), rect.top + H - 120, ["⭐", "✨", "⛽"], 12);
             s.combo += 1;
             s.collected += 1;
-            s.score += 10 + (s.combo >= 3 ? 5 : 0);
-            s.fuel = Math.min(100, s.fuel + 18);
-            if (s.combo % 5 === 0) {
-              s.score += 20;
-              speak(`${pickFrom(PRAISE)} Bonus!`);
-            }
-            // Neues Ziel nach je 4 gesammelten Buchstaben
-            if (s.collected % 4 === 0) {
-              s.target = randLetter(s.target);
-              speak(`Jetzt sammle alle ${s.target}!`);
-            }
-          } else {
+            s.score += 10 + Math.min(s.combo, 5) * 2;
+            s.flash = 0.25;
+            for (let i = 0; i < 14; i++)
+              s.particles.push({ x: sx, y: sg.y, vx: (Math.random() - 0.5) * 320, vy: -Math.random() * 320, life: 0.7, c: "#ffc800" });
+            if (s.collected % 5 === 0) {
+              s.target = newTarget(s.target);
+              speak(`Super! Jetzt sammle alle ${s.target}!`);
+            } else speak(s.target);
+          } else if (s.hitCooldown <= 0) {
             playWrong();
-            burstAt(laneX(l.lane), rect.top + H - 120, ["💥", "🔥", "💨"], 18);
             s.combo = 0;
-            s.damage += 1;
-            s.fuel -= 15;
-            setShaking(true);
-            setTimeout(() => setShaking(false), 450);
-            speak(`Autsch! Das war ${l.letter}! Sammle ${s.target}!`);
+            s.lives -= 1;
+            s.shake = 0.4;
+            s.hitCooldown = 1.2;
+            speak(`Das war ${sg.letter}, nicht ${s.target}!`);
+            for (let i = 0; i < 10; i++)
+              s.particles.push({ x: sx, y: sg.y, vx: (Math.random() - 0.5) * 240, vy: -Math.random() * 200, life: 0.6, c: "#ff4b4b" });
           }
-        } else if (l.y < H + 60) {
-          keep.push(l);
+          continue;
         }
+        if (sg.y < H + 80) keep.push(sg);
       }
-      s.letters = keep;
+      s.signs = keep;
+      for (const p of s.particles) {
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.vy += 600 * dt;
+        p.life -= dt;
+      }
+      s.particles = s.particles.filter((p) => p.life > 0);
+      s.shake = Math.max(0, s.shake - dt);
+      s.flash = Math.max(0, s.flash - dt);
+      s.stripe = (s.stripe + s.speed * dt) % 80;
 
-      if (s.fuel <= 0) {
-        s.fuel = 0;
-        endGame();
+      // ---------- Zeichnen ----------
+      ctx.save();
+      if (s.shake > 0) ctx.translate((Math.random() - 0.5) * 10 * s.shake, (Math.random() - 0.5) * 10 * s.shake);
+      ctx.fillStyle = "#3f8f3a";
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = "#4a4a55";
+      ctx.fillRect(roadL(), 0, roadW(), H);
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(roadL(), 0, 6, H);
+      ctx.fillRect(roadR() - 6, 0, 6, H);
+      ctx.fillStyle = "#ffe066";
+      for (let y = -80 + s.stripe; y < H; y += 80) ctx.fillRect(W / 2 - 4, y, 8, 44);
+
+      for (const sg of s.signs) {
+        const sx = roadL() + sg.x * roadW();
+        const r = signR();
+        ctx.fillStyle = "#00000033";
+        ctx.beginPath();
+        ctx.ellipse(sx, sg.y + r + 6, r * 0.9, r * 0.35, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = sg.color;
+        ctx.beginPath();
+        ctx.arc(sx, sg.y, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = "#fff";
+        ctx.stroke();
+        ctx.fillStyle = "#fff";
+        ctx.font = `800 ${r * 1.35}px Andika, Arial, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(sg.letter, sx, sg.y + 2);
+      }
+
+      // Auto
+      const cw = carW();
+      const ch = cw * 1.5;
+      const tilt = s.fingerX !== null ? (s.fingerX - s.x) * 0.8 : 0;
+      ctx.save();
+      ctx.translate(carX, carY);
+      ctx.rotate(tilt);
+      ctx.fillStyle = "#00000044";
+      ctx.beginPath();
+      ctx.ellipse(0, ch * 0.45, cw * 0.55, cw * 0.25, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#222";
+      for (const [wx, wy] of [[-0.5, -0.35], [0.5, -0.35], [-0.5, 0.35], [0.5, 0.35]]) ctx.fillRect(wx * cw - 6, wy * ch - 12, 12, 24);
+      ctx.fillStyle = s.hitCooldown > 0 && Math.floor(s.time * 12) % 2 ? "#ffb3b3" : "#ff4b4b";
+      ctx.beginPath();
+      ctx.roundRect(-cw / 2, -ch / 2, cw, ch, 14);
+      ctx.fill();
+      ctx.fillStyle = "#9ad8ff";
+      ctx.beginPath();
+      ctx.roundRect(-cw * 0.32, -ch * 0.28, cw * 0.64, ch * 0.22, 6);
+      ctx.fill();
+      ctx.fillStyle = "#ffe066";
+      ctx.fillRect(-cw * 0.4, -ch / 2 + 4, cw * 0.18, 8);
+      ctx.fillRect(cw * 0.22, -ch / 2 + 4, cw * 0.18, 8);
+      ctx.restore();
+
+      for (const p of s.particles) {
+        ctx.globalAlpha = Math.max(0, p.life / 0.7);
+        ctx.fillStyle = p.c;
+        ctx.fillRect(p.x - 4, p.y - 4, 8, 8);
+      }
+      ctx.globalAlpha = 1;
+      if (s.flash > 0) {
+        ctx.fillStyle = `rgba(255,255,255,${s.flash * 0.8})`;
+        ctx.fillRect(0, 0, W, H);
+      }
+      ctx.restore();
+
+      setHud((h) =>
+        h.score === s.score && h.lives === s.lives && h.target === s.target && h.combo === s.combo
+          ? h
+          : { score: s.score, lives: s.lives, target: s.target, combo: s.combo }
+      );
+      if (s.lives <= 0) {
+        gameOver();
         return;
       }
-
-      setTick((t) => t + 1);
-      rafRef.current = requestAnimationFrame(loop);
+      raf.current = requestAnimationFrame(loop);
     };
-
     g.current.last = performance.now();
-    rafRef.current = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(rafRef.current);
+    raf.current = requestAnimationFrame(loop);
+    return () => {
+      cancelAnimationFrame(raf.current);
+      window.removeEventListener("resize", resize);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
-  function endGame() {
-    const s = g.current;
-    playFanfare();
-    const coins = Math.max(5, Math.round(s.score / 5));
-    addPoints(coins);
-    s.coins = coins;
-    const prev = loadHighscore();
-    s.newRecord = s.score > prev;
-    if (s.newRecord) {
-      window.localStorage.setItem(HIGHSCORE_KEY, String(s.score));
-      setBest(s.score);
-    }
-    setPhase("over");
-    speak(
-      s.newRecord
-        ? `Der Tank ist leer! ${s.score} Punkte! Das ist ein neuer Rekord! Wahnsinn!`
-        : `Der Tank ist leer! Du hast ${s.score} Punkte gesammelt! ${pickFrom(PRAISE)}`
+  if (phase === "menu" || phase === "over")
+    return (
+      <main className="shell">
+        <div className="complete">
+          <div className="complete-emoji">🏎️</div>
+          <div className="complete-title">{phase === "over" ? `${result.score} Punkte!` : "Buchstaben-Rennen"}</div>
+          {phase === "over" ? (
+            <div className="points-total">
+              {result.collected} Buchstaben gesammelt {result.rank ? `· Platz ${result.rank} 🏆` : ""}
+            </div>
+          ) : (
+            <div className="points-total" style={{ maxWidth: 340 }}>
+              Zieh mit dem Finger über die Straße, um zu lenken. Sammle nur den Buchstaben, der oben steht – die anderen kosten ein Leben!
+            </div>
+          )}
+          <button className="btn splash-start pulse" onClick={start}>
+            {phase === "over" ? "NOCHMAL 🔁" : "🔊 LOS GEHT'S!"}
+          </button>
+          <div className="cert-title" style={{ marginTop: 14 }}>🏆 Bestenliste</div>
+          <Leaderboard game={GAME} highlight={result?.rank} />
+          <button className="btn btn-blue" style={{ marginTop: 14 }} onClick={() => router.push("/")}>
+            KARTE 🗺️
+          </button>
+        </div>
+      </main>
     );
-  }
-
-  // ---------- Steuerung ----------
-
-  function steer(e) {
-    if (phase !== "play") return;
-    const rect = arenaRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    g.current.lane = Math.max(0, Math.min(LANES - 1, Math.floor((x / rect.width) * LANES)));
-  }
-
-  useEffect(() => {
-    const onKey = (e) => {
-      if (phase !== "play") return;
-      if (e.key === "ArrowLeft") g.current.lane = Math.max(0, g.current.lane - 1);
-      if (e.key === "ArrowRight") g.current.lane = Math.min(LANES - 1, g.current.lane + 1);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [phase]);
-
-  // ---------- Render ----------
-
-  const s = g.current;
-  const fuelPct = s ? Math.max(0, Math.round(s.fuel)) : 100;
 
   return (
-    <main className="race-shell">
-      {phase === "play" && s && (
-        <div className="race-hud">
-          <button className="close-btn" aria-label="Beenden" onClick={() => router.push("/")}>
-            ✕
-          </button>
-          <div className="race-target pulse">
-            Sammle: <b>{s.target}</b>
-          </div>
-          <div className="race-fuel">
-            <span>⛽</span>
-            <div className="fuel-track">
-              <div
-                className={`fuel-fill ${fuelPct < 30 ? "low" : ""}`}
-                style={{ width: `${fuelPct}%` }}
-              />
-            </div>
-          </div>
-          <div className="race-score">🏆 {s.score}</div>
-          <FullscreenButton />
-        </div>
-      )}
-
-      <div
-        className={`race-arena ${shaking ? "race-shake" : ""}`}
-        ref={arenaRef}
-        onPointerDown={steer}
-      >
-        {/* Straße */}
-        <div className="race-road">
-          <div className="road-line" style={{ left: "33.33%" }} />
-          <div className="road-line" style={{ left: "66.66%" }} />
-        </div>
-
-        {/* Buchstaben */}
-        {phase === "play" &&
-          s?.letters.map((l) => (
-            <div
-              key={l.id}
-              className={`race-letter ${l.letter === s.target ? "is-target" : ""}`}
-              style={{
-                left: `${((l.lane + 0.5) / LANES) * 100}%`,
-                top: l.y,
-              }}
-            >
-              {l.letter}
-            </div>
-          ))}
-
-        {/* Auto */}
-        {phase !== "start" && s && (
-          <div
-            className="race-car"
-            style={{ left: `${((s.lane + 0.5) / LANES) * 100}%` }}
-          >
-            {s.damage >= 4 ? "🚗🔥" : s.damage >= 2 ? "🚗💨" : "🏎️"}
-          </div>
-        )}
-
-        {/* Start-Overlay */}
-        {phase === "start" && (
-          <div className="race-overlay">
-            <div className="race-logo">🏎️</div>
-            <h1 className="race-title">BUCHSTABEN-RENNEN</h1>
-            <p className="race-info">
-              Sammle die richtigen Buchstaben für deinen Tank! ⛽<br />
-              Falsche Buchstaben explodieren! 💥<br />
-              Tippe auf die Spur, um zu lenken!
-            </p>
-            <div className="race-best">🏆 Rekord: {best}</div>
-            <button className="btn splash-start pulse" onClick={startGame}>
-              🔊 START!
-            </button>
-            <button className="btn btn-blue" onClick={() => router.push("/")}>
-              🗺️ ZURÜCK
-            </button>
-          </div>
-        )}
-
-        {/* Game-Over-Overlay */}
-        {phase === "over" && s && (
-          <div className="race-overlay">
-            <div className="race-logo">{s.newRecord ? "🏆" : "🏁"}</div>
-            <h1 className="race-title">
-              {s.newRecord ? "NEUER REKORD!" : "TANK LEER!"}
-            </h1>
-            <div className="race-result">
-              <div>🏆 Punkte: <b>{s.score}</b></div>
-              <div>🔤 Buchstaben: <b>{s.collected}</b></div>
-              <div>🥇 Rekord: <b>{Math.max(best, s.score)}</b></div>
-              <div>🪙 +{s.coins} Münzen</div>
-            </div>
-            <button className="btn" onClick={startGame}>
-              🔁 NOCHMAL!
-            </button>
-            <button className="btn btn-blue" onClick={() => router.push("/")}>
-              🗺️ ZUR KARTE
-            </button>
-          </div>
-        )}
+    <div className="race-shell">
+      <div className="race-hud">
+        <button className="close-btn" aria-label="Beenden" onClick={gameOver}>✕</button>
+        <span className="race-target">{hud.target}</span>
+        <span style={{ flex: 1 }}>🪙 {hud.score} {hud.combo >= 3 && `🔥${hud.combo}`}</span>
+        <span>{"❤️".repeat(hud.lives)}{"🖤".repeat(3 - hud.lives)}</span>
+        <FullscreenButton />
       </div>
-    </main>
+      <div
+        className="race-area"
+        ref={areaRef}
+        onPointerDown={(e) => { e.currentTarget.setPointerCapture?.(e.pointerId); pointer(e); }}
+        onPointerMove={pointer}
+        onPointerUp={() => { if (g.current) g.current.fingerX = null; }}
+        onPointerCancel={() => { if (g.current) g.current.fingerX = null; }}
+      >
+        <canvas ref={canvasRef} className="game-canvas" />
+      </div>
+    </div>
   );
 }

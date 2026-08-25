@@ -23,13 +23,14 @@ import { randomOf, PRAISE, STREAK_PRAISE } from "@/lib/phrases";
 import {
   downloadCertificatePNG,
   downloadCertificatePDF,
+  shareCertificate,
+  printCertificate,
   loadName,
   saveName,
 } from "@/lib/certificate";
 import { armMusicAutostart, stopMusic, toggleMusic, isMusicOn, startMusic } from "@/lib/music";
 import { GAME_COMPONENTS } from "@/components/MiniGames";
 import FullscreenButton from "@/components/FullscreenButton";
-import SpeakBack from "@/components/SpeakBack";
 import { Exercise, NudgeButton } from "@/components/Exercise";
 import { enableWakeLock, disableWakeLock } from "@/lib/wakeLock";
 import { hasAudio } from "@/lib/audio";
@@ -203,7 +204,6 @@ function TeachCard({ item }) {
             </button>
           ))}
         </div>
-        <SpeakBack expected={item.words[0].word} spoken={item.words[0].word} />
       </div>
     );
   }
@@ -229,7 +229,6 @@ function TeachCard({ item }) {
             </span>
           ))}
         </div>
-        <SpeakBack expected={item.word} spoken={item.word} />
       </div>
     );
   }
@@ -263,7 +262,6 @@ function TeachCard({ item }) {
       >
         🔊
       </button>
-      <SpeakBack expected={item.word} spoken={item.word} />
     </div>
   );
 }
@@ -480,19 +478,20 @@ function Completion({ chapter, stars, sessionPoints, onRetry, onHome, newBadges 
           onChange={(e) => setChildName(e.target.value)}
         />
         <div className="cert-actions">
-          <button
-            className="btn btn-blue cert-btn"
-            onClick={() => downloadCertificatePNG(certOpts())}
-          >
-            🖼️ ALS BILD
+          <button className="btn btn-blue cert-btn" onClick={() => shareCertificate(certOpts())}>
+            📤 TEILEN
           </button>
-          <button
-            className="btn btn-blue cert-btn"
-            onClick={() => downloadCertificatePDF(certOpts())}
-          >
-            📄 ALS PDF
+          <button className="btn btn-blue cert-btn" onClick={() => printCertificate(certOpts())}>
+            🖨️ DRUCKEN
+          </button>
+          <button className="btn btn-blue cert-btn" onClick={() => downloadCertificatePNG(certOpts())}>
+            🖼️ BILD
+          </button>
+          <button className="btn btn-blue cert-btn" onClick={() => downloadCertificatePDF(certOpts())}>
+            📄 PDF
           </button>
         </div>
+        <div className="eltern-info" style={{ marginTop: 6 }}>Format 10 × 15 cm (Postkarte / Fotodrucker), 300 dpi</div>
       </div>
 
       <NudgeButton

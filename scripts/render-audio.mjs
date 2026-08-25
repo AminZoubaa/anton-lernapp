@@ -96,6 +96,10 @@ NUMBER_WORDS.forEach(add);
   "Das klang noch anders. Probier es gleich nochmal!",
   "Das Mikrofon geht gerade nicht.",
   "Alle Paare gefunden!",
+  "Ballon-Jagd!",
+  "Zähl-Teich! Tippe jedes Tier an und zähle mit. Dann tippe auf die richtige Zahl!",
+  "Wie viele siehst du? Tippe jedes Tier an und zähle!",
+  "Zieh mit dem Finger, um zu lenken!",
   "Neuer Rekord! Wahnsinn!",
   "Hallo! So klinge ich! A wie APFEL!",
   "Los geht's!",
@@ -114,6 +118,10 @@ for (const c of CHAPTERS) {
       add(`Das ist das ${it.char}!`);
       add(`Der Buchstabe lautet: ${it.char}!`);
       add(`Suche das ${it.char}!`);
+      add(`Suche ${it.char}!`);
+      add(`Super! Jetzt sammle alle ${it.char}!`);
+      add(`Sammle alle ${it.char}!`);
+      add(`Tippe auf alle Ballons mit ${it.char}!`);
       add(`Finde ein Wort mit ${it.char}!`);
       add(`In welchem Wort hörst du ein ${it.char}?`);
       for (const w of it.words) {

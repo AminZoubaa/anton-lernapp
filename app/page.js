@@ -136,20 +136,20 @@ export default function Home() {
 
       {showVoices && <VoicePicker onClose={() => setShowVoices(false)} />}
 
-      <Link href="/rennen" style={{ textDecoration: "none" }}>
-        <div className="race-node">
-          <span className="race-node-emoji">🏎️</span>
-          <span>BUCHSTABEN-RENNEN</span>
-          <span className="race-node-emoji">🏁</span>
-        </div>
-      </Link>
-      <Link href="/memory" style={{ textDecoration: "none" }}>
-        <div className="memory-node">
-          <span>🃏</span>
-          <span>MEMORY</span>
-          <span>🧠</span>
-        </div>
-      </Link>
+      <div className="game-row">
+        <Link href="/rennen" style={{ textDecoration: "none" }}>
+          <div className="game-node" style={{ background: "linear-gradient(135deg, #ff9600, #ffc800)" }}>🏎️ RENNEN</div>
+        </Link>
+        <Link href="/ballons" style={{ textDecoration: "none" }}>
+          <div className="game-node" style={{ background: "linear-gradient(135deg, #ff4b4b, #ff86d0)" }}>🎈 BALLONS</div>
+        </Link>
+        <Link href="/zaehlen" style={{ textDecoration: "none" }}>
+          <div className="game-node" style={{ background: "linear-gradient(135deg, #58cc02, #1cb0f6)" }}>🐸 ZÄHLEN</div>
+        </Link>
+        <Link href="/memory" style={{ textDecoration: "none" }}>
+          <div className="game-node" style={{ background: "linear-gradient(135deg, #ce82ff, #1cb0f6)" }}>🃏 MEMORY</div>
+        </Link>
+      </div>
       {totalStars > 0 && (
         <Link href="/training" style={{ textDecoration: "none" }}>
           <div className="trainer-node">

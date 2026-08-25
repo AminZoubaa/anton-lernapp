@@ -8,7 +8,6 @@ import { CHAPTERS } from "@/lib/content";
 import { itemKeyOf } from "@/lib/lesson";
 import { loadStats, loadProgress, resetAll, loadPoints } from "@/lib/progress";
 import { loadName, saveName } from "@/lib/certificate";
-import { isRecognitionSupported } from "@/lib/recognition";
 import { hasAudio, loadManifest } from "@/lib/audio";
 import UpdateButton from "@/components/UpdateButton";
 import VoicePicker from "@/components/VoicePicker";
@@ -31,7 +30,6 @@ export default function Eltern() {
   const [points, setPoints] = useState(0);
   const [voices, setVoices] = useState(false);
   const [audioReady, setAudioReady] = useState(false);
-  const [recog, setRecog] = useState(false);
   const [dl, setDl] = useState(null); // {done,total}
 
   async function downloadAll() {
@@ -55,7 +53,6 @@ export default function Eltern() {
     setProgress(loadProgress());
     setName(loadName());
     setPoints(loadPoints());
-    setRecog(isRecognitionSupported());
     loadManifest().then(() => setAudioReady(hasAudio("Super!")));
   }, []);
 
@@ -94,8 +91,7 @@ export default function Eltern() {
         <div className="eltern-info">
           „Offline-Paket laden“ holt alle Sprach-Dateien (~24 MB) einmal in den Cache – danach spricht die App auch ohne Internet mit der gleichen Stimme.
           <br />
-          Vorgerenderte Audios: {audioReady ? "✅ aktiv" : "❌ nicht vorhanden (System-Stimme)"} ·
-          Nachsprechen: {recog ? "✅ verfügbar" : "❌ in diesem Browser nicht verfügbar"} · Punkte gesamt: {points}
+          Vorgerenderte Audios: {audioReady ? "✅ aktiv" : "❌ nicht vorhanden (System-Stimme)"} · Punkte gesamt: {points}
         </div>
         <button
           className="btn"

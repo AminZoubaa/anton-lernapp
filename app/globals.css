@@ -1668,7 +1668,9 @@ body {
 
 .cert-actions {
   display: flex;
-  gap: 12px;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 .cert-btn {
@@ -1746,3 +1748,33 @@ body {
 .trainer-modes { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin: 12px 0; }
 .memory-won { background: #fff; border-radius: 18px; padding: 12px 18px; margin: 6px 0 10px; text-align: center; box-shadow: 0 4px 14px rgba(0,0,0,0.12); display: flex; flex-direction: column; align-items: center; gap: 6px; animation: pop-in 0.4s ease-out; }
 .memory-won-title { font-size: 1.3rem; font-weight: 800; color: var(--orange); }
+
+/* Bestenliste */
+.board { width: 100%; max-width: 380px; background: #fff; border-radius: 16px; padding: 8px 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.board-row { display: flex; align-items: center; gap: 10px; padding: 6px 4px; border-bottom: 1px solid #f0f0f0; font-size: 1.05rem; }
+.board-row:last-child { border-bottom: 0; }
+.board-row.me { background: #fff5c2; border-radius: 10px; font-weight: 800; }
+.board-rank { width: 2.2em; }
+.board-name { flex: 1; text-align: left; }
+.board-score { font-weight: 800; color: var(--orange); }
+.board-empty { color: #888; font-size: 0.95rem; }
+.game-canvas { display: block; width: 100%; height: 100%; touch-action: none; border-radius: 22px; }
+.race-shell { position: fixed; inset: 0; background: #1f2a44; display: flex; flex-direction: column; }
+.race-hud { display: flex; align-items: center; gap: 8px; padding: max(8px, env(safe-area-inset-top)) 10px 6px; color: #fff; font-weight: 800; }
+.race-target { font-size: 2.2rem; background: #ffc800; color: #1f2a44; border-radius: 16px; padding: 0 16px; line-height: 1.5; box-shadow: 0 4px 0 #c79b00; }
+.race-area { flex: 1; position: relative; min-height: 0; }
+
+/* Ballon-Jagd */
+.balloon-area { overflow: hidden; }
+.balloon { position: absolute; width: 74px; height: 92px; border-radius: 50% 50% 50% 50% / 45% 45% 55% 55%; border: 0; color: #fff; font-size: 2.3rem; font-weight: 800; box-shadow: inset -8px -10px 0 rgba(0,0,0,0.15); transform: translate(-50%, 0); touch-action: none; cursor: pointer; }
+.balloon::after { content: ""; position: absolute; left: 50%; bottom: -30px; width: 2px; height: 30px; background: rgba(0,0,0,0.35); }
+/* Zähl-Teich */
+.pond { overflow: hidden; }
+.pond-animal { position: absolute; width: 74px; height: 74px; font-size: 3rem; background: transparent; border: 0; transform: translate(-50%, -50%); animation: pop-in 0.4s ease-out both; touch-action: manipulation; }
+.pond-animal.counted { filter: drop-shadow(0 0 6px #ffc800); }
+.pond-animal .counttap-num { position: absolute; top: -6px; right: -6px; }
+.pond-pads { position: absolute; left: 0; right: 0; bottom: max(14px, env(safe-area-inset-bottom)); display: flex; justify-content: center; gap: 16px; }
+.pond-pad { width: 86px; height: 86px; border-radius: 50%; border: 0; background: #58cc02; color: #fff; font-size: 2.6rem; font-weight: 800; box-shadow: 0 6px 0 #46a302; }
+.pond-pad:active { transform: translateY(4px); box-shadow: 0 2px 0 #46a302; }
+.game-node { display: flex; align-items: center; justify-content: center; gap: 10px; color: #fff; font-weight: 700; border-radius: 24px; padding: 12px 22px; margin: 8px auto; width: fit-content; font-size: 1.1rem; box-shadow: 0 4px 0 rgba(0,0,0,0.15); }
+.game-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
