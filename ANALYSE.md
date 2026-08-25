@@ -153,3 +153,13 @@ Was eine wirklich gute, kostenlose Offline-Frauenstimme bräuchte: ein „medium
 - **✏️ Schreiben lernen** (`/schreiben`, Vollbild, Finger/Stift/Maus, Scrollen & Zoomen gesperrt): Bahnen für A–Z und 0–9 in Schul-Schreibrichtung. Pro Strich: Vorführung (Punkt läuft die Bahn entlang, Pfeil = Richtung, nummerierter Startpunkt) → Kind zieht nach → Bewertung (Bahn-Abdeckung 65 % + Genauigkeit 35 %): ≥ 82 % „Perfekt“, ≥ 60 % „Gut gemacht“, sonst „Nochmal“ mit erneuter Vorführung. Knöpfe: Vorführen, Strich löschen, Zurück (letzten Strich zurücknehmen), Buchstabe anhören. Wörter Buchstabe für Buchstabe: eigener Name, MAMA, PAPA, HALLO, HAUS, SONNE, BLUME, WELT, ERDE, OMA, OPA, AUTO, BALL. Fortschritt (✓) pro Zeichen.
 - **Rennen & Ballons:** Pool ist jetzt das ganze Alphabet **plus Ziffern 0–9**, zufälliger Start, rotierend. Ziffern werden als Zahlwort gesprochen; Verwechsler auch für Ziffern (0/O, 1/I, 5/S, 2/Z, 8/B).
 - **Urkunde:** Pokal links und Gold-/Silber-/Bronze-Medaille rechts (nach Sternen) fest integriert; Fußzeile in eigener Zeile, nichts überlappt mehr. **In der Home-Bildschirm-App kein neuer Tab mehr:** Drucken, Bild und PDF laufen dort alle über das System-Teilen-Menü (Drucken/Fotos/AirDrop) – die Sackgasse ist damit weg.
+
+## Runde 10 – Rennen ausgebaut, sechs neue Spiele
+
+- **Rennen:** volle Bildschirmbreite, Auto folgt dem Finger in **beide Richtungen** (überall auf der Fläche). 3 Treffer in Folge = **Schutzschild** (4 s, falsche Zeichen/Bomben zerbrechen wie Steine). Gegenstände: 🎁 +25, ⭐ Schild 5 s, ❤️ Herz (bis 9), 🛡️ Rüstung (bis 3 Schichten, jede fängt einen Treffer ab), 🍌 Rutsch (2 s schlingern, −10), 💣 Bombe (Explosion, −1 Herz, außer Schild/Rüstung). **Fahrzeugklassen** nach Punkten: Stadtauto → Taxi → Jeep → Bus → Truck → Traktor → Feuerwehr → Rennwagen → Rakete, mit Ansage und Feuerwerk beim Aufstieg. HUD zeigt Fahrzeug, Herzen, Rüstung, Schild.
+- **🎣 Angeln:** Fische mit Zeichen schwimmen in beide Richtungen; Haken fällt beim Antippen, richtiger Fisch wird hochgezogen, falscher flieht.
+- **💎 Schatzsuche:** 12 Steine, 3 verstecken das gesuchte Zeichen; 8 Schätze pro Runde, Zeitbonus.
+- **🚀 Bild-Rakete:** Bilder fliegen vorbei, „Was fängt mit M an?“ – reines Hören (Anlaute), Wort wird beim Antippen gesagt.
+- **🧩 Puzzle:** Buchstabe in seine Striche zerlegt (aus den Schreibbahnen), Teile in die graue Form schieben, rasten ein.
+- **🐾 Zoo + Tages-Sticker:** 26 Anlaut-Tiere ziehen ein, wenn der Buchstabe dreimal sofort gewusst wurde; Tagesrunde (3 wackeligste) gibt täglich einen Sticker ins Album.
+- Alle Spiele: Countdown, Ziel-Reveal, +/− Popups, Schaden-Blitz, Bestenliste, Pool A–Z + 0–9.

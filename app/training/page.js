@@ -4,7 +4,9 @@
 // aus ALLEN Kapiteln. Kein Lernkarten-Teil, keine Spiele – reines Abrufen.
 // Das ist der Teil, der wirklich zeigt, was hängen geblieben ist.
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
+import { awardDailySticker } from "@/lib/stickers";
 import { Exercise, NudgeButton } from "@/components/Exercise";
 import FullscreenButton from "@/components/FullscreenButton";
 import { buildTraining, readableWords } from "@/lib/lesson";
@@ -15,8 +17,9 @@ import { confettiRain } from "@/lib/fx";
 import { enableWakeLock, disableWakeLock } from "@/lib/wakeLock";
 import { getChapter } from "@/lib/content";
 
-export default function Training() {
+function TrainingInner() {
   const router = useRouter();
+  const daily = useSearchParams().get("daily") === "1";
   const [steps, setSteps] = useState(null);
   const [idx, setIdx] = useState(0);
   const [solved, setSolved] = useState(false);
@@ -46,7 +49,7 @@ export default function Training() {
     unlockAudio();
     enableWakeLock();
     setMode(m);
-    setSteps(buildTraining(rankItemsForTraining(), m === "lesen" ? 6 : 8, m));
+    setSteps(buildTraining(rankItemsForTraining(), daily ? 3 : m === "lesen" ? 6 : 8, m));
     setIdx(0);
     setRight(0);
     setStarted(true);
@@ -69,6 +72,10 @@ export default function Training() {
     if (idx + 1 >= steps.length) {
       setDone(true);
       touchDaily();
+      if (daily) {
+        const st = awardDailySticker();
+        if (st) setTimeout(() => speak(`Du hast einen Sticker bekommen: ${st.emoji}!`), 2500);
+      }
       playFanfare();
       confettiRain();
       setTimeout(
@@ -127,7 +134,7 @@ export default function Training() {
       <main className="shell">
         <div className="complete">
           <div className="complete-emoji">🏋️</div>
-          <div className="complete-title">Trainer fertig!</div>
+          <div className="complete-title">{daily ? "Tagesrunde geschafft! 🌟" : "Trainer fertig!"}</div>
           <div className="points-earned">
             {right} / {steps.length} sofort gewusst
           </div>
@@ -207,5 +214,14 @@ export default function Training() {
         </div>
       )}
     </main>
+  );
+}
+
+
+export default function Training() {
+  return (
+    <Suspense fallback={<main className="shell" />}>
+      <TrainingInner />
+    </Suspense>
   );
 }
