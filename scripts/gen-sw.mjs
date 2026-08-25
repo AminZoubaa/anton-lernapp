@@ -19,7 +19,11 @@ function walk(dir, acc = []) {
 
 const files = walk(OUT)
   .map((p) => relative(OUT, p).split("\\").join("/"))
-  .filter((f) => f !== "sw.js" && !f.endsWith(".map") && f !== ".nojekyll" && !f.startsWith(".git"));
+  .filter((f) => f !== "sw.js" && !f.endsWith(".map") && f !== ".nojekyll" && !f.startsWith(".git"))
+  // Die ~2000 Sprach-MP3s nicht beim Installieren laden (zu viele Requests für
+  // iOS), sondern beim ersten Abspielen cachen bzw. über "Offline-Paket laden"
+  // im Eltern-Bereich komplett vorladen. Laute + Manifest kommen sofort mit.
+  .filter((f) => !f.startsWith("audio/sprache/"));
 
 const hash = createHash("sha1");
 for (const f of files) hash.update(f).update(String(statSync(join(OUT, f)).size));

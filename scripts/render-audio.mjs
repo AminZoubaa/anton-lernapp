@@ -1,26 +1,23 @@
 // Rendert alle festen Sprach-Texte der App als MP3 nach public/audio/
 // und schreibt public/audio/manifest.json (Text → Datei).
 //
-//   npm run audio -- --engine openai            (Cloud, sehr gute Qualität)
-//   npm run audio -- --engine azure             (Cloud, sehr gute Qualität)
-//   npm run audio -- --engine piper --model ~/piper/de_DE-kerstin-low.onnx  (offline, kostenlos)
-//   npm run audio -- --list                     (nur zeigen, was gerendert würde)
+//   npm run audio -- --voice voices/de-kerstin-low.onnx   (Piper, Open Source, offline)
+//   npm run audio -- --list                                (nur zeigen, was gerendert würde)
+//
+// Voraussetzungen (einmalig):  pip install piper-tts   +   ffmpeg
+// Stimmen (kostenlos, GitHub-Release rhasspy/piper v0.0.2):
+//   voice-de-kerstin-low, voice-de-ramona-low (weiblich), voice-de-eva_k-x-low (weiblich, kleiner)
+//   → nach voices/ entpacken. Standard ist kerstin.
 //
 // Aufruf mit:  node --experimental-default-type=module scripts/render-audio.mjs …
 // (steht so in package.json unter "audio")
 //
-// Empfehlung für eine gute WEIBLICHE deutsche Stimme:
-//   openai  → OPENAI_API_KEY setzen, Stimme "nova" oder "shimmer" (Modell gpt-4o-mini-tts)
-//   azure   → AZURE_TTS_KEY + AZURE_TTS_REGION, Stimme "de-DE-SeraphinaMultilingualNeural"
-//             oder "de-DE-KatjaNeural" (sehr natürlich, klar, kindgerecht)
-//   piper   → kostenlos/offline, deutsche Frauenstimmen nur in "low"-Qualität
-//             (kerstin, ramona, eva_k) – deutlich hörbar schlechter als die Cloud-Stimmen.
-//
 // Nur die Texte, die feststehen, werden gerendert. Sätze mit variablen Teilen
 // (z. B. "Noch 3 zu fangen") spricht weiterhin die System-Stimme – dafür sorgt
-// der Fallback in lib/speech.js. Die Anlaut-LAUTE (mmm, sss …) kann keine TTS
-// sprechen: dafür bitte kurze Aufnahmen nach public/audio/laute/<BUCHSTABE>.mp3
-// legen (siehe Ausgabe am Ende), das Skript trägt sie ins Manifest ein.
+// der Fallback in lib/speech.js.
+// Anlaut-LAUTE (mmm, sss, bə …) erzeugt scripts/tts.py direkt aus Phonemen
+// mit derselben Stimme. Eigene Aufnahmen in public/audio/laute/<BUCHSTABE>.mp3
+// haben Vorrang, wenn vorhanden.
 import { mkdirSync, existsSync, writeFileSync, readFileSync, readdirSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
@@ -31,7 +28,7 @@ const opt = (name, def) => {
   const i = args.indexOf(`--${name}`);
   return i >= 0 ? args[i + 1] : def;
 };
-const ENGINE = opt("engine", "openai");
+const VOICE = opt("voice", "voices/de-kerstin-low.onnx");
 const LIST = args.includes("--list");
 const OUT_DIR = "public/audio";
 const SPEECH_DIR = join(OUT_DIR, "sprache");
@@ -88,7 +85,18 @@ NUMBER_WORDS.forEach(add);
   "Minispiel! Tippe die Zahlen der Reihe nach, von klein nach groß! Das gelbe Feld zeigt dir, welche Zahl du suchst!",
   "Minispiel! Tippe die Buchstaben in der richtigen Reihenfolge! Das gelbe Feld zeigt dir, welchen Buchstaben du suchst!",
   "Detektiv-Spiel! Drei Zeichen sind gleich, eins ist anders! Tippe auf das Zeichen, das nicht dazu passt!",
-  "Trainer! Zeig mir, was du noch weißt!",
+  "Hör-Trainer! Zeig mir, was du noch weißt!",
+  "Lese-Trainer! Wir ziehen die Buchstaben zusammen und lesen Wörter!",
+  "Wir lesen zusammen. Hör zu:",
+  "Welches Bild passt dazu? Tippe darauf!",
+  "Lies das Wort! Welches Bild passt?",
+  "So hast du es gesagt:",
+  "Und so klingt es:",
+  "Ich habe nichts gehört. Sprich laut und deutlich!",
+  "Das klang noch anders. Probier es gleich nochmal!",
+  "Das Mikrofon geht gerade nicht.",
+  "Alle Paare gefunden!",
+  "Neuer Rekord! Wahnsinn!",
   "Hallo! So klinge ich! A wie APFEL!",
   "Los geht's!",
 ].forEach(add);
@@ -100,6 +108,9 @@ for (const c of CHAPTERS) {
     if (it.type === "letter") {
       add(it.char);
       add(`${it.char}!`);
+      add(`Großes ${it.char}`);
+      add(`Kleines ${it.char}`);
+      add(`Großes ${it.char} und kleines ${it.char}!`);
       add(`Das ist das ${it.char}!`);
       add(`Der Buchstabe lautet: ${it.char}!`);
       add(`Suche das ${it.char}!`);
@@ -145,100 +156,51 @@ if (LIST) {
   process.exit(0);
 }
 
-// ---------- 2. Rendern ----------
+// ---------- 2. Rendern (Piper über scripts/tts.py, dann MP3 via ffmpeg) ----------
 
-const fileName = (t) => createHash("sha1").update(t).digest("hex").slice(0, 12) + ".mp3";
+const fileName = (t) => createHash("sha1").update(t).digest("hex").slice(0, 12);
 const normalize = (t) => t.trim().replace(/\s+/g, " ").toLowerCase();
-
-async function renderOpenAI(text, file) {
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) throw new Error("OPENAI_API_KEY fehlt");
-  const res = await fetch("https://api.openai.com/v1/audio/speech", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: opt("model", "gpt-4o-mini-tts"),
-      voice: opt("voice", "nova"),
-      input: text,
-      instructions:
-        "Sprich langsam, klar und freundlich, wie eine Grundschullehrerin, die mit einem fünfjährigen Kind spricht. Deutsch.",
-      response_format: "mp3",
-      speed: 0.9,
-    }),
-  });
-  if (!res.ok) throw new Error(`OpenAI ${res.status}: ${await res.text()}`);
-  writeFileSync(file, Buffer.from(await res.arrayBuffer()));
-}
-
-async function renderAzure(text, file) {
-  const key = process.env.AZURE_TTS_KEY;
-  const region = process.env.AZURE_TTS_REGION;
-  if (!key || !region) throw new Error("AZURE_TTS_KEY / AZURE_TTS_REGION fehlen");
-  const voice = opt("voice", "de-DE-SeraphinaMultilingualNeural");
-  const ssml = `<speak version="1.0" xml:lang="de-DE"><voice name="${voice}"><prosody rate="-12%">${text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")}</prosody></voice></speak>`;
-  const res = await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
-    method: "POST",
-    headers: {
-      "Ocp-Apim-Subscription-Key": key,
-      "Content-Type": "application/ssml+xml",
-      "X-Microsoft-OutputFormat": "audio-24khz-96kbitrate-mono-mp3",
-    },
-    body: ssml,
-  });
-  if (!res.ok) throw new Error(`Azure ${res.status}: ${await res.text()}`);
-  writeFileSync(file, Buffer.from(await res.arrayBuffer()));
-}
-
-function renderPiper(text, file) {
-  const model = opt("model");
-  if (!model) throw new Error("--model <pfad.onnx> fehlt");
-  const wav = file.replace(/\.mp3$/, ".wav");
-  execFileSync("piper", ["--model", model, "--output_file", wav, "--length_scale", "1.15"], {
-    input: text,
-  });
-  execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", wav, "-codec:a", "libmp3lame", "-q:a", "4", file]);
-  execFileSync("rm", [wav]);
-}
-
-const manifestPath = join(OUT_DIR, "manifest.json");
-const manifest = existsSync(manifestPath) ? JSON.parse(readFileSync(manifestPath, "utf8")) : {};
-let done = 0;
-for (const text of list) {
-  const name = fileName(text);
-  const file = join(SPEECH_DIR, name);
-  if (!existsSync(file)) {
-    try {
-      if (ENGINE === "openai") await renderOpenAI(text, file);
-      else if (ENGINE === "azure") await renderAzure(text, file);
-      else renderPiper(text, file);
-      done++;
-      process.stdout.write(`\r${done} neu gerendert…`);
-    } catch (e) {
-      console.error(`\nFehler bei "${text}": ${e.message}`);
-      continue;
-    }
-  }
-  manifest[normalize(text)] = `sprache/${name}`;
-}
-
-// Anlaut-Laute: manuell aufgenommene Dateien eintragen
 const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
-const present = new Set(readdirSync(LAUTE_DIR));
-const missing = [];
+
+const jobs = [];
+for (const text of list) {
+  const base = fileName(text);
+  if (!existsSync(join(SPEECH_DIR, base + ".mp3"))) jobs.push({ text, file: `sprache/${base}.wav` });
+}
 for (const L of letters) {
-  const f = `${L}.mp3`;
-  if (present.has(f)) manifest[`laut:${L}`] = `laute/${f}`;
-  else missing.push(L);
+  if (!existsSync(join(LAUTE_DIR, `${L}.mp3`))) jobs.push({ laut: L, file: `laute/${L}.wav` });
+}
+console.log(`${jobs.length} Dateien zu rendern (Stimme: ${VOICE})`);
+
+if (jobs.length) {
+  const jobsFile = join(OUT_DIR, "_jobs.json");
+  writeFileSync(jobsFile, JSON.stringify(jobs));
+  execFileSync("python3", ["scripts/tts.py", "--voice", VOICE, "--jobs", jobsFile, "--out", OUT_DIR], { stdio: "inherit" });
+  // WAV → MP3 (mono, 16 kHz, 40 kbit/s – klein genug für den Offline-Cache)
+  let n = 0;
+  for (const j of jobs) {
+    const wav = join(OUT_DIR, j.file);
+    if (!existsSync(wav)) continue;
+    const mp3 = wav.replace(/\.wav$/, ".mp3");
+    // Dauerlaute (mmm, sss, aaa …) doppelt so lang ziehen – Tonhöhe bleibt
+    const CONTINUANTS = "AEIOUFLMNRSVWZ";
+    const filter = j.laut && CONTINUANTS.includes(j.laut) ? ["-af", "atempo=0.5"] : [];
+    execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", wav, ...filter, "-ac", "1", "-ar", "16000", "-codec:a", "libmp3lame", "-b:a", "40k", mp3]);
+    execFileSync("rm", [wav]);
+    if (++n % 100 === 0) console.log(`${n} MP3s…`);
+  }
+  execFileSync("rm", ["-f", jobsFile]);
 }
 
-writeFileSync(manifestPath, JSON.stringify(manifest, null, 1));
-console.log(`\nManifest: ${Object.keys(manifest).length} Einträge → ${manifestPath}`);
-if (missing.length) {
-  console.log(
-    `\nAnlaut-Laute fehlen für: ${missing.join(" ")}\n` +
-      `→ Kurz aufnehmen (z. B. mit dem iPhone-Sprachmemo, 0,5–1 s, nur der Laut: "mmm", "sss", "t", "k" …)\n` +
-      `  und als public/audio/laute/<BUCHSTABE>.mp3 ablegen, dann Skript erneut laufen lassen.`
-  );
+// ---------- 3. Manifest ----------
+
+const manifest = {};
+for (const text of list) {
+  const f = `sprache/${fileName(text)}.mp3`;
+  if (existsSync(join(OUT_DIR, f))) manifest[normalize(text)] = f;
 }
+for (const L of letters) {
+  if (existsSync(join(LAUTE_DIR, `${L}.mp3`))) manifest[`laut:${L}`] = `laute/${L}.mp3`;
+}
+writeFileSync(join(OUT_DIR, "manifest.json"), JSON.stringify(manifest));
+console.log(`Manifest: ${Object.keys(manifest).length} Einträge`);

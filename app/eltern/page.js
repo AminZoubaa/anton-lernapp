@@ -32,6 +32,23 @@ export default function Eltern() {
   const [voices, setVoices] = useState(false);
   const [audioReady, setAudioReady] = useState(false);
   const [recog, setRecog] = useState(false);
+  const [dl, setDl] = useState(null); // {done,total}
+
+  async function downloadAll() {
+    const base = process.env.NEXT_PUBLIC_BASE_PATH || "";
+    const m = await loadManifest();
+    const files = [...new Set(Object.values(m))];
+    setDl({ done: 0, total: files.length });
+    let done = 0;
+    // in kleinen Gruppen laden – der Service Worker legt alles in den Cache
+    for (let i = 0; i < files.length; i += 8) {
+      await Promise.all(
+        files.slice(i, i + 8).map((f) => fetch(`${base}/audio/${f}`).catch(() => null))
+      );
+      done = Math.min(files.length, i + 8);
+      setDl({ done, total: files.length });
+    }
+  }
 
   useEffect(() => {
     setStats(loadStats());
@@ -70,8 +87,13 @@ export default function Eltern() {
             🗣️ Stimme wählen
           </button>
           <UpdateButton />
+          <button className="btn btn-blue" onClick={downloadAll} disabled={!!dl && dl.done < dl.total}>
+            {dl ? (dl.done < dl.total ? `📥 ${dl.done}/${dl.total}` : "✅ Offline-Paket komplett") : "📥 Offline-Paket laden"}
+          </button>
         </div>
         <div className="eltern-info">
+          „Offline-Paket laden“ holt alle Sprach-Dateien (~24 MB) einmal in den Cache – danach spricht die App auch ohne Internet mit der gleichen Stimme.
+          <br />
           Vorgerenderte Audios: {audioReady ? "✅ aktiv" : "❌ nicht vorhanden (System-Stimme)"} ·
           Nachsprechen: {recog ? "✅ verfügbar" : "❌ in diesem Browser nicht verfügbar"} · Punkte gesamt: {points}
         </div>

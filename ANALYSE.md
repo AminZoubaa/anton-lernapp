@@ -106,3 +106,10 @@ Stand: August 2026. Grundlage: kompletter Code (Inhalte, Lektionsaufbau, Minispi
 **Trainer für Nicht-Leser**
 - 👂 **Hören & Tippen:** nur Aufgaben ohne Lesen (Buchstabe hören → tippen, Bild → Anfangsbuchstabe, Zahl hören/zählen, Wort hören → Bild). Wörter lesen, Zahlwörter und Sätze sind raus.
 - 📖 **Lesen:** neue Mechanik „Buchstaben zusammenziehen“: Wort erscheint groß (mit Kleinschreibung darunter), wird Laut für Laut mit Hervorhebung gesprochen, dann als Ganzes; das Kind wählt das passende Bild. Nur Wörter, deren Buchstaben alle schon gelernt sind (Kapitel mit ≥ 1 Stern) – öffnet sich also automatisch, sobald es sinnvoll wird. Mit aufgenommenen Anlaut-Lauten wird das Zusammenziehen echt (statt „Be-A-eL-eL“).
+
+## Runde 4 – Open-Source-Stimme, Anlaute, Memory
+
+- **Stimme:** Piper (Open Source, offline, kostenlos), Stimme „kerstin“ (weiblich, deutsch). Alle 2 159 festen Texte sind als MP3 im Repo (`public/audio`, ~24 MB) – gleiche Stimme auf jedem Gerät, funktioniert offline. Rendern/Nachrendern: `npm run audio` (braucht `pip install piper-tts` und ffmpeg; Stimmen aus dem GitHub-Release rhasspy/piper v0.0.2 nach `voices/`). Alternativstimmen ramona / eva_k mit `--voice`.
+- **Anlaute echt:** `scripts/tts.py` gibt dem Modell **Phoneme** statt Text – M → „mːː“, A → „aːː“, B → „bə“ (kurz, mit Schwa, wie in der Anlauttabelle), S → „sːː“, Z → „tsːː“, W → „vːː“, V → „fːː“ usw. Dauerlaute werden per Tonhöhen-erhaltendem Zeitstrecken verdoppelt. Lernkarte spielt den Laut zweimal, Lese-Trainer zieht damit zusammen.
+- Sprach-MP3s werden nicht mehr bei der SW-Installation geladen (2 000 Requests sind iOS zu viel), sondern beim ersten Abspielen gecacht – oder komplett über „📥 Offline-Paket laden“ im Eltern-Bereich.
+- **Memory:** jede aufgedeckte Karte wird benannt (Buchstabe / Wort / „großes A“ / Zahlwort); nach dem letzten Paar bleibt das Brett offen mit Ergebnis-Banner, erst WEITER wechselt.

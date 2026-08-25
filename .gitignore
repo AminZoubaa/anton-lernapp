@@ -5,4 +5,5 @@ out/
 
 out/
 dev.log
-public/audio/sprache/
+
+voices/

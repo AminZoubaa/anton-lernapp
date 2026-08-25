@@ -40,18 +40,32 @@ const numbers = CHAPTERS.filter((c) => c.id.startsWith("zahlen")).flatMap((c) =>
 const vocab = CHAPTERS.filter((c) => c.id.startsWith("vokabeln")).flatMap((c) => c.items);
 
 function buildPairs(mode, count) {
+  // sayA / sayB: was beim Aufdecken der jeweiligen Karte gesprochen wird
   if (mode === "bild") {
     const pool = shuffle(letters.filter((l) => !l.inWord)).slice(0, count);
     return pool.map((l) => {
       const w = randomOf(l.words);
-      return { a: l.char, b: w.emojis[0], speak: `${l.char} wie ${w.word}!`, bSmall: false };
+      return { a: l.char, b: w.emojis[0], sayA: l.char, sayB: w.word, speak: `${l.char} wie ${w.word}!` };
     });
   }
   if (mode === "klein")
-    return shuffle(letters).slice(0, count).map((l) => ({ a: l.char, b: l.char.toLowerCase(), speak: `Großes ${l.char} und kleines ${l.char}!` }));
+    return shuffle(letters).slice(0, count).map((l) => ({
+      a: l.char,
+      b: l.char.toLowerCase(),
+      sayA: `Großes ${l.char}`,
+      sayB: `Kleines ${l.char}`,
+      speak: `Großes ${l.char} und kleines ${l.char}!`,
+    }));
   if (mode === "zahl")
-    return shuffle(numbers).slice(0, count).map((n) => ({ a: String(n.value), b: n.emoji.repeat(n.value), speak: n.word, bSmall: true }));
-  return shuffle(vocab).slice(0, count).map((v) => ({ a: v.word, b: v.emojis[0], speak: v.word, aSmall: true }));
+    return shuffle(numbers).slice(0, count).map((n) => ({
+      a: String(n.value),
+      b: n.emoji.repeat(n.value),
+      sayA: n.word,
+      sayB: n.word,
+      speak: n.word,
+      bSmall: true,
+    }));
+  return shuffle(vocab).slice(0, count).map((v) => ({ a: v.word, b: v.emojis[0], sayA: v.word, sayB: v.word, speak: v.word, aSmall: true }));
 }
 
 const scoreKey = (mode, size) => `anton-lernapp-memory-${mode}-${size}`;
@@ -102,8 +116,8 @@ export default function MemoryPage() {
     setCards(
       shuffle(
         p.flatMap((pr) => [
-          { pairId: pr.id, face: pr.a, small: pr.aSmall },
-          { pairId: pr.id, face: pr.b, small: pr.bSmall },
+          { pairId: pr.id, face: pr.a, small: pr.aSmall, say: pr.sayA },
+          { pairId: pr.id, face: pr.b, small: pr.bSmall, say: pr.sayB },
         ])
       ).map((c, i) => ({ ...c, id: i }))
     );
@@ -128,7 +142,8 @@ export default function MemoryPage() {
     setBests((b) => ({ ...b, [mode + size]: Math.max(best, score) }));
     addPoints(Math.round(score / 4));
     setResult({ score, stars, record, timeBonus, penalty });
-    setPhase("done");
+    // Spiel bleibt offen (alle Karten aufgedeckt), erst WEITER wechselt die Ansicht
+    setPhase("won");
     playFanfare();
     confettiRain();
     setTimeout(
@@ -138,22 +153,24 @@ export default function MemoryPage() {
           { pause: 300 },
           { text: record ? "Neuer Rekord! Wahnsinn!" : randomOf(PRAISE) },
         ]),
-      500
+      1800
     );
   }
 
   function tap(card, ev) {
-    if (busy.current || flipped.includes(card.id) || matched.includes(card.pairId)) return;
+    if (phase !== "play" || busy.current || flipped.includes(card.id) || matched.includes(card.pairId)) return;
     playPop();
     const now = [...flipped, card.id];
     setFlipped(now);
+    // Jede aufgedeckte Karte wird sofort benannt – so lernt man beim Spielen
+    if (card.say) speak(card.say);
     if (now.length < 2) return;
     const [c1, c2] = now.map((id) => cards.find((c) => c.id === id));
     if (c1.pairId === c2.pairId) {
       playCorrect();
       burstFromElement(ev.currentTarget, ["⭐", "✨"], 10);
       const pr = pairs.find((p) => p.id === c1.pairId);
-      speak(pr.speak);
+      setTimeout(() => speak(`Ein Paar! ${pr.speak}`), 700);
       const nm = [...matched, c1.pairId];
       setMatched(nm);
       setFlipped([]);
@@ -238,7 +255,20 @@ export default function MemoryPage() {
       <div className="lesson-body">
         <div className="game">
           <div className="game-title">{modeCfg.emoji} {modeCfg.title}</div>
-          <div className="game-sub">Noch {pairs.length - matched.length} Paare</div>
+          {phase === "won" ? (
+            <div className="memory-won">
+              <div className="memory-won-title">🏆 Alle Paare gefunden!</div>
+              <div className="complete-stars" style={{ margin: "4px 0" }}>
+                {[1, 2, 3].map((n) => (
+                  <span key={n} className={n <= result.stars ? "star-on" : "star-off"}>⭐</span>
+                ))}
+              </div>
+              <div>{result.score} Punkte {result.record && "· 🎉 Neuer Rekord!"}</div>
+              <button className="btn" onClick={() => setPhase("done")}>WEITER ✅</button>
+            </div>
+          ) : (
+            <div className="game-sub">Noch {pairs.length - matched.length} Paare</div>
+          )}
           <div className="memory-grid big" style={{ gridTemplateColumns: `repeat(${sizeCfg.cols}, minmax(0, 1fr))` }}>
             {cards.map((card) => {
               const open = flipped.includes(card.id) || matched.includes(card.pairId);
