@@ -13,6 +13,7 @@ import { burstAt } from "@/lib/fx";
 import { pickFrom, PRAISE } from "@/lib/phrases";
 import { ALL_LETTERS } from "@/lib/content";
 import { isMusicOn, startMusic, stopMusic } from "@/lib/music";
+import FullscreenButton from "@/components/FullscreenButton";
 
 const HIGHSCORE_KEY = "anton-lernapp-race-highscore";
 const LANES = 3;
@@ -228,6 +229,7 @@ export default function RaceGame() {
             </div>
           </div>
           <div className="race-score">🏆 {s.score}</div>
+          <FullscreenButton />
         </div>
       )}
 

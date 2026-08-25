@@ -6,6 +6,8 @@ import { CHAPTERS } from "@/lib/content";
 import { loadProgress, loadPoints, loadDaily } from "@/lib/progress";
 import { armMusicAutostart, stopMusic, toggleMusic, isMusicOn } from "@/lib/music";
 import { BADGES, loadEarnedBadges } from "@/lib/badges";
+import FullscreenButton from "@/components/FullscreenButton";
+import VoicePicker from "@/components/VoicePicker";
 
 const POSITIONS = ["mid", "left", "mid", "right"];
 const DECO = ["🎈", "⭐", "🦋", "🌈", "☁️", "🎨", "🚀", "🌟"];
@@ -29,6 +31,7 @@ export default function Home() {
   const [musicOn, setMusicOn] = useState(true);
   const [earned, setEarned] = useState([]);
   const [daily, setDaily] = useState({ streak: 0 });
+  const [showVoices, setShowVoices] = useState(false);
 
   useEffect(() => {
     setProgress(loadProgress());
@@ -79,6 +82,14 @@ export default function Home() {
               >
                 {musicOn ? "🎵" : "🔇"}
               </button>
+              <button
+                className="music-btn"
+                aria-label="Stimme auswählen"
+                onClick={() => setShowVoices(true)}
+              >
+                🗣️
+              </button>
+              <FullscreenButton />
             </div>
             <div className="badge-row">
               {BADGES.map((b) => (
@@ -94,6 +105,8 @@ export default function Home() {
           </>
         )}
       </header>
+
+      {showVoices && <VoicePicker onClose={() => setShowVoices(false)} />}
 
       <Link href="/rennen" style={{ textDecoration: "none" }}>
         <div className="race-node">

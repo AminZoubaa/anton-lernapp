@@ -26,6 +26,7 @@ import {
 } from "@/lib/certificate";
 import { armMusicAutostart, stopMusic, toggleMusic, isMusicOn, startMusic } from "@/lib/music";
 import { GAME_COMPONENTS } from "@/components/MiniGames";
+import FullscreenButton from "@/components/FullscreenButton";
 import gsap from "gsap";
 import { burstFromElement, burstAt, confettiRain, dropIn, popIn, staggerIn } from "@/lib/fx";
 
@@ -886,6 +887,7 @@ export default function LessonClient({ id }) {
           >
             {musicOn ? "🎵" : "🔇"}
           </button>
+          <FullscreenButton />
         </div>
       )}
 
