@@ -71,11 +71,16 @@ export default function Rennen() {
       flash: 0,
       hitCooldown: 0,
       over: false,
+      countdown: 3.9, // 3 · 2 · 1 · LOS
+      reveal: { letter: target, t: 0 }, // großer Buchstabe in der Mitte → fliegt nach oben
+      popups: [],
+      cracks: 0,
+      redFlash: 0,
     };
     setHud({ score: 0, lives: 3, target, combo: 0 });
     setResult(null);
     setPhase("play");
-    speakSeq([{ text: "Los geht's!" }, { text: `Sammle alle ${target}!` }, { text: "Zieh mit dem Finger, um zu lenken!" }]);
+    speakSeq([{ text: "Drei" }, { pause: 650 }, { text: "Zwei" }, { pause: 650 }, { text: "Eins" }, { pause: 500 }, { text: "Los geht's!" }, { pause: 200 }, { text: `Sammle alle ${target}!` }]);
   }
 
   function gameOver() {
@@ -129,15 +134,21 @@ export default function Rennen() {
       if (!s || s.over) return;
       const dt = Math.min((now - s.last) / 1000, 0.05);
       s.last = now;
-      s.time += dt;
-      s.speed = Math.min(260 + s.time * 6, 520);
+      const running = s.countdown <= 0;
+      if (!running) s.countdown -= dt;
+      if (s.reveal) {
+        s.reveal.t += dt;
+        if (s.reveal.t > 1.6) s.reveal = null;
+      }
+      if (running) s.time += dt;
+      s.speed = running ? Math.min(260 + s.time * 6, 520) : 0;
       s.hitCooldown = Math.max(0, s.hitCooldown - dt);
 
       // Lenken: sanft zur Fingerposition
       if (s.fingerX !== null) s.x += (s.fingerX - s.x) * Math.min(1, dt * 12);
 
       // Spawnen: 55 % Ziel, sonst (ähnlicher) Ablenker
-      s.spawnIn -= dt;
+      if (running) s.spawnIn -= dt;
       if (s.spawnIn <= 0) {
         s.spawnIn = Math.max(0.55, 1.2 - s.time * 0.01);
         const isTarget = Math.random() < 0.55;
@@ -159,20 +170,31 @@ export default function Rennen() {
             playPop();
             s.combo += 1;
             s.collected += 1;
-            s.score += 10 + Math.min(s.combo, 5) * 2;
+            const gain = 10 + Math.min(s.combo, 5) * 2;
+            s.score += gain;
             s.flash = 0.25;
+            s.popups.push({ x: sx, y: sg.y, text: `+${gain}`, color: "#2fbf2f", life: 1 });
             for (let i = 0; i < 14; i++)
               s.particles.push({ x: sx, y: sg.y, vx: (Math.random() - 0.5) * 320, vy: -Math.random() * 320, life: 0.7, c: "#ffc800" });
             if (s.collected % 5 === 0) {
               s.target = newTarget(s.target);
+              s.reveal = { letter: s.target, t: 0 };
               speak(`Super! Jetzt sammle alle ${s.target}!`);
             } else speak(s.target);
           } else if (s.hitCooldown <= 0) {
             playWrong();
             s.combo = 0;
             s.lives -= 1;
-            s.shake = 0.4;
+            s.cracks += 1;
+            s.shake = 0.5;
+            s.redFlash = 0.5;
             s.hitCooldown = 1.2;
+            s.popups.push({ x: sx, y: sg.y, text: "−1 ❤️", color: "#ff2d2d", life: 1.2 });
+            for (let i = 0; i < 22; i++) {
+              const a = Math.random() * Math.PI * 2;
+              const v = 120 + Math.random() * 260;
+              s.particles.push({ x: sx, y: sg.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.8, c: i % 2 ? "#ff9600" : "#ff4b4b" });
+            }
             speak(`Das war ${sg.letter}, nicht ${s.target}!`);
             for (let i = 0; i < 10; i++)
               s.particles.push({ x: sx, y: sg.y, vx: (Math.random() - 0.5) * 240, vy: -Math.random() * 200, life: 0.6, c: "#ff4b4b" });
@@ -191,6 +213,12 @@ export default function Rennen() {
       s.particles = s.particles.filter((p) => p.life > 0);
       s.shake = Math.max(0, s.shake - dt);
       s.flash = Math.max(0, s.flash - dt);
+      s.redFlash = Math.max(0, s.redFlash - dt);
+      for (const p of s.popups) {
+        p.y -= 60 * dt;
+        p.life -= dt;
+      }
+      s.popups = s.popups.filter((p) => p.life > 0);
       s.stripe = (s.stripe + s.speed * dt) % 80;
 
       // ---------- Zeichnen ----------
@@ -251,6 +279,25 @@ export default function Rennen() {
       ctx.fillStyle = "#ffe066";
       ctx.fillRect(-cw * 0.4, -ch / 2 + 4, cw * 0.18, 8);
       ctx.fillRect(cw * 0.22, -ch / 2 + 4, cw * 0.18, 8);
+      // Schaden: Risse und Rauch je verlorenem Leben
+      ctx.strokeStyle = "#3a1010";
+      ctx.lineWidth = 2;
+      for (let i = 0; i < s.cracks; i++) {
+        ctx.beginPath();
+        ctx.moveTo(-cw * 0.3 + i * cw * 0.3, -ch * 0.1);
+        ctx.lineTo(-cw * 0.2 + i * cw * 0.3, ch * 0.1);
+        ctx.lineTo(-cw * 0.32 + i * cw * 0.3, ch * 0.3);
+        ctx.stroke();
+      }
+      if (s.cracks >= 2) {
+        ctx.fillStyle = "rgba(60,60,60,0.45)";
+        for (let i = 0; i < 3; i++) {
+          const k = (s.time * 1.5 + i * 0.33) % 1;
+          ctx.beginPath();
+          ctx.arc(cw * 0.1 + Math.sin(k * 6) * 6, -ch / 2 - k * 40, 6 + k * 12, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
       ctx.restore();
 
       for (const p of s.particles) {
@@ -262,6 +309,68 @@ export default function Rennen() {
       if (s.flash > 0) {
         ctx.fillStyle = `rgba(255,255,255,${s.flash * 0.8})`;
         ctx.fillRect(0, 0, W, H);
+      }
+      if (s.redFlash > 0) {
+        const grd = ctx.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, H * 0.8);
+        grd.addColorStop(0, "rgba(255,0,0,0)");
+        grd.addColorStop(1, `rgba(255,0,0,${s.redFlash * 0.9})`);
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, 0, W, H);
+      }
+      // Punkte-Popups
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      for (const p of s.popups) {
+        ctx.globalAlpha = Math.min(1, p.life);
+        ctx.font = `900 ${p.color === "#ff2d2d" ? 34 : 30}px Andika, Arial, sans-serif`;
+        ctx.lineWidth = 6;
+        ctx.strokeStyle = "#fff";
+        ctx.strokeText(p.text, p.x, p.y);
+        ctx.fillStyle = p.color;
+        ctx.fillText(p.text, p.x, p.y);
+      }
+      ctx.globalAlpha = 1;
+      // Ziel-Buchstabe: groß in der Mitte pulsieren, dann nach oben zum HUD fliegen
+      if (s.reveal) {
+        const t = s.reveal.t;
+        const grow = Math.min(t / 0.35, 1);
+        const fly = Math.max(0, (t - 1.0) / 0.6);
+        const size = (90 + Math.sin(t * 10) * 8) * grow * (1 - fly * 0.7);
+        const x = W / 2 + (60 - W / 2) * fly;
+        const y = H * 0.35 + (-30 - H * 0.35) * fly;
+        ctx.globalAlpha = 1 - fly * 0.5;
+        ctx.fillStyle = "#ffc800";
+        ctx.beginPath();
+        ctx.arc(x, y, size * 0.85, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.lineWidth = 8;
+        ctx.strokeStyle = "#fff";
+        ctx.stroke();
+        ctx.fillStyle = "#1f2a44";
+        ctx.font = `900 ${size}px Andika, Arial, sans-serif`;
+        ctx.fillText(s.reveal.letter, x, y + 4);
+        ctx.font = `700 ${22 * grow}px Andika, Arial, sans-serif`;
+        ctx.fillStyle = "#fff";
+        ctx.strokeStyle = "#1f2a44";
+        ctx.lineWidth = 4;
+        ctx.strokeText("Sammle alle", x, y - size * 0.95 - 16);
+        ctx.fillText("Sammle alle", x, y - size * 0.95 - 16);
+        ctx.globalAlpha = 1;
+      }
+      // Countdown
+      if (!running) {
+        const n = Math.ceil(s.countdown - 0.9);
+        const label = n >= 1 ? String(n) : "LOS!";
+        const frac = 1 - ((s.countdown - 0.9) % 1);
+        ctx.globalAlpha = 0.9;
+        ctx.fillStyle = "rgba(0,0,0,0.35)";
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = n >= 1 ? "#fff" : "#58cc02";
+        ctx.font = `900 ${110 + frac * 40}px Andika, Arial, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(label, W / 2, H * 0.68);
+        ctx.globalAlpha = 1;
       }
       ctx.restore();
 

@@ -84,7 +84,10 @@ export default function MemoryPage() {
   const [phase, setPhase] = useState("menu"); // menu | play | done
   const [result, setResult] = useState(null);
   const [bests, setBests] = useState({});
-  const busy = useRef(false);
+  const flippedRef = useRef([]);
+  const matchedRef = useRef([]);
+  const hideTimer = useRef(null);
+  const missesRef = useRef(0);
 
   useEffect(() => {
     const b = {};
@@ -121,6 +124,9 @@ export default function MemoryPage() {
         ])
       ).map((c, i) => ({ ...c, id: i }))
     );
+    flippedRef.current = [];
+    matchedRef.current = [];
+    missesRef.current = 0;
     setFlipped([]);
     setMatched([]);
     setMisses(0);
@@ -158,31 +164,43 @@ export default function MemoryPage() {
   }
 
   function tap(card, ev) {
-    if (phase !== "play" || busy.current || flipped.includes(card.id) || matched.includes(card.pairId)) return;
+    if (phase !== "play") return;
+    if (matchedRef.current.includes(card.pairId)) return;
+    let f = flippedRef.current;
+    if (f.includes(card.id)) return;
+    // Liegen noch zwei falsche Karten offen, werden sie sofort umgedreht –
+    // man muss nicht warten, bis die Anzeige-Pause vorbei ist.
+    if (f.length >= 2) {
+      clearTimeout(hideTimer.current);
+      f = [];
+    }
     playPop();
-    const now = [...flipped, card.id];
-    setFlipped(now);
-    // Jede aufgedeckte Karte wird sofort benannt – so lernt man beim Spielen
+    f = [...f, card.id];
+    flippedRef.current = f;
+    setFlipped(f);
     if (card.say) speak(card.say);
-    if (now.length < 2) return;
-    const [c1, c2] = now.map((id) => cards.find((c) => c.id === id));
+    if (f.length < 2) return;
+    const [c1, c2] = f.map((id) => cards.find((c) => c.id === id));
     if (c1.pairId === c2.pairId) {
       playCorrect();
       burstFromElement(ev.currentTarget, ["⭐", "✨"], 10);
       const pr = pairs.find((p) => p.id === c1.pairId);
       setTimeout(() => speak(`Ein Paar! ${pr.speak}`), 700);
-      const nm = [...matched, c1.pairId];
+      const nm = [...matchedRef.current, c1.pairId];
+      matchedRef.current = nm;
       setMatched(nm);
+      flippedRef.current = [];
       setFlipped([]);
-      if (nm.length === pairs.length) finish(misses);
+      if (nm.length === pairs.length) finish(missesRef.current);
     } else {
       playWrong();
-      const m = misses + 1;
-      setMisses(m);
-      busy.current = true;
-      setTimeout(() => {
-        setFlipped([]);
-        busy.current = false;
+      missesRef.current += 1;
+      setMisses(missesRef.current);
+      hideTimer.current = setTimeout(() => {
+        if (flippedRef.current === f) {
+          flippedRef.current = [];
+          setFlipped([]);
+        }
       }, 900);
     }
   }
@@ -276,7 +294,7 @@ export default function MemoryPage() {
                 <button
                   key={card.id}
                   className={`memory-card ${open ? "open" : ""} ${matched.includes(card.pairId) ? "matched" : ""} ${card.small ? "small-face" : ""} ${mode === "klein" ? "lower-ok" : ""}`}
-                  onClick={(e) => tap(card, e)}
+                  onPointerDown={(e) => tap(card, e)}
                 >
                   {open ? card.face : "❓"}
                 </button>

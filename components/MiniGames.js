@@ -131,6 +131,8 @@ export function PopGame({ step, onDone, onPoints, onMistake }) {
       wrong();
       setWrongId(bubble.id);
       setTimeout(() => setWrongId(null), 500);
+      // Strafe: die zuletzt gefangene Blase kommt zurück
+      setPopped((p) => p.slice(0, -1));
       speak(`Das ist ${bubble.text}. Fange nur ${step.target}!`);
     }
   }
@@ -254,7 +256,8 @@ export function SortGame({ step, onDone, onPoints, onMistake }) {
 export function MemoryGame({ step, onDone, onPoints, onMistake }) {
   const [flipped, setFlipped] = useState([]);
   const [matched, setMatched] = useState([]);
-  const busy = useRef(false);
+  const flippedRef = useRef([]);
+  const hideTimer = useRef(null);
   const misses = useRef(0);
   const doneRef = useRef(false);
   const { wrong, penalty } = useWrongTap(onMistake, onPoints);
@@ -263,38 +266,43 @@ export function MemoryGame({ step, onDone, onPoints, onMistake }) {
 
   function tap(card, ev) {
     lastAction.current = Date.now();
-    if (busy.current || doneRef.current) return;
-    if (flipped.includes(card.id) || matched.includes(card.pairId)) return;
+    if (doneRef.current || matched.includes(card.pairId)) return;
+    let f = flippedRef.current;
+    if (f.includes(card.id)) return;
+    if (f.length >= 2) {
+      clearTimeout(hideTimer.current);
+      f = [];
+    }
     playPop();
-    const nowFlipped = [...flipped, card.id];
-    setFlipped(nowFlipped);
-    if (nowFlipped.length === 2) {
-      const [c1, c2] = nowFlipped.map((id) => step.cards.find((c) => c.id === id));
-      if (c1.pairId === c2.pairId) {
-        playCorrect();
-        burstFromElement(ev.currentTarget, ["⭐", "✨"], 10);
-        const pair = step.pairs.find((p) => p.id === c1.pairId);
-        speak(`Ein Paar! ${pair.speak}`);
-        onPoints(4, "+4");
-        const newMatched = [...matched, c1.pairId];
-        setMatched(newMatched);
-        setFlipped([]);
-        if (newMatched.length === step.pairs.length) {
-          doneRef.current = true;
-          finishGame(onPoints, onDone, `Alle Paare gefunden! ${randomOf(PRAISE)}`);
-        }
-      } else {
-        // Beim Memory gehören ein paar Fehlversuche dazu – erst ab dem
-        // dritten falschen Paar gibt es Abzug (sonst wird nur wild getippt).
-        misses.current += 1;
-        if (misses.current >= 3) wrong();
-        else playWrong();
-        busy.current = true;
-        setTimeout(() => {
-          setFlipped([]);
-          busy.current = false;
-        }, 1000);
+    f = [...f, card.id];
+    flippedRef.current = f;
+    setFlipped(f);
+    if (f.length < 2) return;
+    const [c1, c2] = f.map((id) => step.cards.find((c) => c.id === id));
+    if (c1.pairId === c2.pairId) {
+      playCorrect();
+      burstFromElement(ev.currentTarget, ["⭐", "✨"], 10);
+      const pair = step.pairs.find((p) => p.id === c1.pairId);
+      speak(`Ein Paar! ${pair.speak}`);
+      onPoints(4, "+4");
+      const newMatched = [...matched, c1.pairId];
+      setMatched(newMatched);
+      flippedRef.current = [];
+      setFlipped([]);
+      if (newMatched.length === step.pairs.length) {
+        doneRef.current = true;
+        finishGame(onPoints, onDone, `Alle Paare gefunden! ${randomOf(PRAISE)}`);
       }
+    } else {
+      misses.current += 1;
+      if (misses.current >= 3) wrong();
+      else playWrong();
+      hideTimer.current = setTimeout(() => {
+        if (flippedRef.current === f) {
+          flippedRef.current = [];
+          setFlipped([]);
+        }
+      }, 900);
     }
   }
 
@@ -315,7 +323,7 @@ export function MemoryGame({ step, onDone, onPoints, onMistake }) {
               className={`memory-card ${open ? "open" : ""} ${
                 matched.includes(card.pairId) ? "matched" : ""
               } ${card.small ? "small-face" : ""}`}
-              onClick={(e) => tap(card, e)}
+              onPointerDown={(e) => tap(card, e)}
             >
               {open ? card.face : "❓"}
             </button>
@@ -554,7 +562,10 @@ export function MoleGame({ step, onDone, onPoints, onMistake }) {
       wrong();
       setWrongCell(cellIdx);
       setTimeout(() => setWrongCell(null), 400);
-      speak(`Das war ${active.letter}! Fange nur das ${step.target}!`);
+      // Falsch getippt kostet einen Stern – sonst kommt man durch wildes
+      // Tippen trotzdem auf fünf Treffer
+      setHits((h) => Math.max(0, h - 1));
+      speak(`Das war ${active.letter}! Ein Stern weg! Fange nur das ${step.target}!`);
       setActive(null);
     }
   }

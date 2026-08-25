@@ -1778,3 +1778,18 @@ body {
 .pond-pad:active { transform: translateY(4px); box-shadow: 0 2px 0 #46a302; }
 .game-node { display: flex; align-items: center; justify-content: center; gap: 10px; color: #fff; font-weight: 700; border-radius: 24px; padding: 12px 22px; margin: 8px auto; width: fit-content; font-size: 1.1rem; box-shadow: 0 4px 0 rgba(0,0,0,0.15); }
 .game-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
+
+/* Spiel-Feedback: Countdown, Ziel-Reveal, Punkte-Popups, Schaden */
+.count-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 8rem; font-weight: 900; color: #fff; text-shadow: 0 6px 0 rgba(0,0,0,0.25); background: rgba(0,0,0,0.25); animation: count-pop 0.7s ease-out both; pointer-events: none; z-index: 5; }
+@keyframes count-pop { 0% { transform: scale(0.4); opacity: 0; } 25% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+.reveal-overlay { position: absolute; left: 50%; top: 32%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; pointer-events: none; z-index: 6; animation: reveal-fly 1.6s ease-in-out both; }
+.reveal-label { color: #fff; font-weight: 800; font-size: 1.3rem; text-shadow: 0 2px 0 rgba(0,0,0,0.3); }
+.reveal-letter { width: 170px; height: 170px; border-radius: 50%; background: #ffc800; border: 8px solid #fff; color: #1f2a44; font-size: 6rem; font-weight: 900; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 30px rgba(0,0,0,0.25); animation: reveal-pulse 0.5s ease-in-out 3; }
+@keyframes reveal-pulse { 50% { transform: scale(1.12); } }
+@keyframes reveal-fly { 0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0; } 15% { transform: translate(-50%, -50%) scale(1); opacity: 1; } 70% { transform: translate(-50%, -50%) scale(1); opacity: 1; } 100% { transform: translate(-50%, -260%) scale(0.3); opacity: 0; } }
+.score-popup { position: fixed; transform: translate(-50%, -50%); font-weight: 900; font-size: 2rem; pointer-events: none; z-index: 7; animation: popup-rise 1s ease-out both; -webkit-text-stroke: 2px #fff; paint-order: stroke fill; }
+.score-popup.good { color: #2fbf2f; }
+.score-popup.bad { color: #ff2d2d; font-size: 2.4rem; }
+@keyframes popup-rise { 0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); } 20% { opacity: 1; transform: translate(-50%, -70%) scale(1.2); } 100% { opacity: 0; transform: translate(-50%, -160%) scale(1); } }
+.balloon-area.damage { animation: shake 0.4s; }
+.balloon-area.damage::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle, transparent 40%, rgba(255,0,0,0.45)); pointer-events: none; z-index: 4; }

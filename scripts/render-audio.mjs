@@ -103,6 +103,7 @@ NUMBER_WORDS.forEach(add);
   "Neuer Rekord! Wahnsinn!",
   "Hallo! So klinge ich! A wie APFEL!",
   "Los geht's!",
+  "Drei", "Zwei", "Eins",
   "Super! Nur noch einer!",
   ...[2, 3, 4, 5, 6, 7, 8, 9].map((n) => `Super! Noch ${n}!`),
   ...[1, 2, 3, 4].map((n) => `Getroffen! Noch ${n}!`),
@@ -123,6 +124,7 @@ for (const c of CHAPTERS) {
       add(`Der Buchstabe lautet: ${it.char}!`);
       add(`Suche das ${it.char}!`);
       add(`Suche ${it.char}!`);
+      add(`Das war ${it.char}! Ein Stern weg! Fange nur das ${it.char}!`);
       add(`Super! Jetzt sammle alle ${it.char}!`);
       add(`Sammle alle ${it.char}!`);
       add(`Tippe auf alle Ballons mit ${it.char}!`);

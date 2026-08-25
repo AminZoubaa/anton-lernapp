@@ -29,7 +29,23 @@ export default function Ballons() {
   const [balloons, setBalloons] = useState([]);
   const [hud, setHud] = useState({ score: 0, target: "A", time: ROUND, streak: 0 });
   const [result, setResult] = useState(null);
+  const [overlay, setOverlay] = useState(null); // {kind:'count', n} | {kind:'reveal', letter}
+  const [popups, setPopups] = useState([]);
+  const [damage, setDamage] = useState(0); // kurzer roter Blitz + Wackeln
+  const popId = useRef(0);
   const pool = useRef(["A", "B", "C", "D", "E"]);
+
+  function popup(x, y, text, good) {
+    const id = popId.current++;
+    setPopups((p) => [...p, { id, x, y, text, good }]);
+    setTimeout(() => setPopups((p) => p.filter((q) => q.id !== id)), 1000);
+  }
+
+  // Ziel-Buchstabe groß in der Mitte zeigen, dann nach oben "wegziehen"
+  function reveal(letter) {
+    setOverlay({ kind: "reveal", letter });
+    setTimeout(() => setOverlay(null), 1600);
+  }
 
   useEffect(() => {
     pool.current = playableLetters();
@@ -49,11 +65,16 @@ export default function Ballons() {
     unlockAudio();
     enableWakeLock();
     const target = newTarget(null);
-    g.current = { score: 0, target, hits: 0, streak: 0, time: ROUND, items: [], spawnIn: 0.3, last: performance.now(), id: 0, over: false };
+    g.current = { score: 0, target, hits: 0, streak: 0, time: ROUND, items: [], spawnIn: 0.3, last: performance.now(), id: 0, over: false, paused: 3.2 };
     setHud({ score: 0, target, time: ROUND, streak: 0 });
     setResult(null);
+    setPopups([]);
     setPhase("play");
-    speakSeq([{ text: "Ballon-Jagd!" }, { text: `Tippe auf alle Ballons mit ${target}!` }]);
+    // Countdown 3-2-1, dann Ziel-Buchstabe groß zeigen
+    [3, 2, 1].forEach((n, i) => setTimeout(() => setOverlay({ kind: "count", n }), i * 700));
+    setTimeout(() => setOverlay({ kind: "count", n: "LOS!" }), 2100);
+    setTimeout(() => reveal(target), 2700);
+    speakSeq([{ text: "Drei" }, { pause: 500 }, { text: "Zwei" }, { pause: 500 }, { text: "Eins" }, { pause: 400 }, { text: "Los geht's!" }, { pause: 200 }, { text: `Tippe auf alle Ballons mit ${target}!` }]);
   }
 
   function end() {
@@ -76,6 +97,11 @@ export default function Ballons() {
       if (!s || s.over) return;
       const dt = Math.min((now - s.last) / 1000, 0.05);
       s.last = now;
+      if (s.paused > 0) {
+        s.paused -= dt;
+        raf.current = requestAnimationFrame(loop);
+        return;
+      }
       s.time -= dt;
       const H = areaRef.current?.clientHeight || 600;
       s.spawnIn -= dt;
@@ -125,10 +151,13 @@ export default function Ballons() {
       it.state = "gone";
       s.streak += 1;
       s.hits += 1;
-      s.score += 10 + Math.min(s.streak, 5) * 2;
-      burstAt(ev.clientX, ev.clientY, ["💥", "⭐", "✨"], 12);
+      const gain = 10 + Math.min(s.streak, 5) * 2;
+      s.score += gain;
+      burstAt(ev.clientX, ev.clientY, ["🎆", "⭐", "✨", "🎇"], 14);
+      popup(ev.clientX, ev.clientY, `+${gain}`, true);
       if (s.hits % 5 === 0) {
         s.target = newTarget(s.target);
+        reveal(s.target);
         speak(`${pickFrom(PRAISE)} Jetzt alle ${s.target}!`);
       } else speak(s.target);
     } else {
@@ -137,6 +166,10 @@ export default function Ballons() {
       setTimeout(() => (it.state = "up"), 600);
       s.streak = 0;
       s.score = Math.max(0, s.score - 5);
+      burstAt(ev.clientX, ev.clientY, ["💥", "🔥"], 8);
+      popup(ev.clientX, ev.clientY, "−5", false);
+      setDamage((d) => d + 1);
+      setTimeout(() => setDamage((d) => Math.max(0, d - 1)), 500);
       speak(`Das ist ${it.letter}. Suche ${s.target}!`);
     }
   }
@@ -169,7 +202,19 @@ export default function Ballons() {
         <span>⏱️ {hud.time}</span>
         <FullscreenButton />
       </div>
-      <div className="race-area balloon-area" ref={areaRef}>
+      <div className={`race-area balloon-area ${damage ? "damage" : ""}`} ref={areaRef}>
+        {overlay?.kind === "count" && <div className="count-overlay" key={String(overlay.n)}>{overlay.n}</div>}
+        {overlay?.kind === "reveal" && (
+          <div className="reveal-overlay" key={overlay.letter}>
+            <div className="reveal-label">Tippe alle</div>
+            <div className="reveal-letter">{overlay.letter}</div>
+          </div>
+        )}
+        {popups.map((p) => (
+          <span key={p.id} className={`score-popup ${p.good ? "good" : "bad"}`} style={{ left: p.x, top: p.y }}>
+            {p.text}
+          </span>
+        ))}
         {balloons.map((b) => (
           <button
             key={b.id}
