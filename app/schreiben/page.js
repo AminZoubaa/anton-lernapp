@@ -19,6 +19,7 @@ import { loadName } from "@/lib/certificate";
 import { addPoints } from "@/lib/progress";
 import { confettiRain } from "@/lib/fx";
 import { pickFrom, PRAISE } from "@/lib/phrases";
+import { GIFEncoder, quantize, applyPalette } from "gifenc";
 
 const LETTERS = [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"];
 const DIGITS = [..."0123456789"];
@@ -189,20 +190,19 @@ export default function Schreiben() {
     if (judged.current || !strokesDrawn.current.length) return;
     const r = scoreGlyph(strokesDrawn.current, strokes);
     judged.current = true;
-    if (r.score >= 0.85) {
-      playCorrect(); setVerdict({ score: r.score, text: "Perfekt! ⭐⭐⭐" });
+    if (r.pass && r.score >= 0.88 && r.minCov >= 0.85 && r.precision >= 0.8) {
+      playCorrect(); setVerdict({ score: 1, text: "Perfekt! ⭐⭐⭐" });
       speak(`Perfekt! ${pickFrom(PRAISE)}`);
       setTimeout(nextGlyph, 1200);
-    } else if (r.score >= 0.65) {
-      playPop(); setVerdict({ score: r.score, text: "Gut gemacht! ⭐⭐" });
+    } else if (r.pass) {
+      playPop(); setVerdict({ score: 0.7, text: "Gut gemacht! ⭐⭐" });
       speak("Gut gemacht!");
       setTimeout(nextGlyph, 1200);
     } else {
       playWrong();
-      const why = r.startOk === 0 ? "Fang beim grünen Punkt 1 an!" : r.order < 0.6 ? "Achte auf die Reihenfolge: 1, dann 2, dann 3." : r.coverage < 0.5 ? "Bleib auf der grauen Bahn." : "Fast!";
-      setVerdict({ score: r.score, text: `Nochmal! ${why}` });
-      speak(`Versuch es noch einmal. ${why} Mit dem Augen-Knopf bekommst du Hilfe.`);
-      setTimeout(() => { strokesDrawn.current = []; judged.current = false; setVerdict(null); }, 1600);
+      setVerdict({ score: 0, text: `Nochmal! ${r.why}` });
+      speak(`Versuch es noch einmal. ${r.why} Mit dem Augen-Knopf bekommst du Hilfe.`);
+      setTimeout(() => { strokesDrawn.current = []; judged.current = false; setVerdict(null); }, 1800);
     }
   }
 
@@ -251,6 +251,50 @@ export default function Schreiben() {
     return () => { cancelAnimationFrame(raf.current); clearTimeout(raf.current); };
   }, [phase]);
 
+  // Animiertes GIF der Wort-Animation (Strich für Strich), zum Teilen
+  const [gifBusy, setGifBusy] = useState(false);
+  async function saveGif() {
+    if (gifBusy) return;
+    setGifBusy(true);
+    speak("Ich baue das Filmchen …");
+    await new Promise((r) => setTimeout(r, 50));
+    try {
+      const n = wordDrawings.current.length;
+      const cell = 160, pad = 16;
+      const W = n * cell + pad * 2, H = cell + pad * 2;
+      const c = document.createElement("canvas"); c.width = W; c.height = H;
+      const ctx = c.getContext("2d");
+      ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.lineWidth = 12; ctx.strokeStyle = "#1f2a44";
+      const seq = [];
+      wordDrawings.current.forEach((dd, li) => dd.strokes.forEach((st) => seq.push(st.map(([x, y]) => [pad + li * cell + (x / 100) * cell, pad + (y / 100) * cell]))));
+      const gif = GIFEncoder();
+      const frame = (delay) => {
+        const { data } = ctx.getImageData(0, 0, W, H);
+        const palette = quantize(data, 16);
+        const index = applyPalette(data, palette);
+        gif.writeFrame(index, W, H, { palette, delay });
+      };
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+      frame(300);
+      for (const st of seq) {
+        for (let i = 1; i < st.length; i += 3) {
+          ctx.beginPath(); ctx.moveTo(st[Math.max(0, i - 3)][0], st[Math.max(0, i - 3)][1]); ctx.lineTo(st[i][0], st[i][1]); ctx.stroke();
+          frame(40);
+        }
+        ctx.beginPath(); ctx.moveTo(st[st.length - 2][0], st[st.length - 2][1]); ctx.lineTo(st[st.length - 1][0], st[st.length - 1][1]); ctx.stroke();
+        frame(250);
+      }
+      frame(1500);
+      gif.finish();
+      const blob = new Blob([gif.bytes()], { type: "image/gif" });
+      const file = new File([blob], `${queue.join("")}.gif`, { type: "image/gif" });
+      if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file], title: queue.join("") }); } catch {} }
+      else { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = file.name; a.click(); }
+    } finally {
+      setGifBusy(false);
+    }
+  }
+
   async function saveWord() {
     const canvas = replayRef.current;
     const blob = await new Promise((r) => canvas.toBlob(r, "image/png"));
@@ -290,7 +334,8 @@ export default function Schreiben() {
           <canvas ref={replayRef} />
           <div className="write-bar">
             <button className="btn btn-blue" onClick={() => setPhase((p) => (setTimeout(() => setPhase("replay"), 0), "replay-reset"))}>▶️ NOCHMAL ZEIGEN</button>
-            <button className="btn btn-blue" onClick={saveWord}>💾 ALS BILD SPEICHERN</button>
+            <button className="btn btn-blue" onClick={saveWord}>🖼️ ALS BILD</button>
+            <button className="btn btn-blue" onClick={saveGif} disabled={gifBusy}>{gifBusy ? "⏳ …" : "🎬 ALS GIF (ANIMIERT)"}</button>
             <button className="btn" onClick={() => setPhase("menu")}>WEITER ✅</button>
           </div>
         </div>

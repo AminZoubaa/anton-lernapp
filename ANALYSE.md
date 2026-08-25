@@ -171,3 +171,10 @@ Was eine wirklich gute, kostenlose Offline-Frauenstimme bräuchte: ein „medium
 - **Rakete / Angeln / Ballons:** Zielwechsel mit „Hey! Neuer Buchstabe!“, großem Reveal und 2,2 s Pause (Bildschirm geleert), damit kein Fehler passiert.
 - **Puzzle:** Bewegung 1:1 unter dem Finger (Umrechnung war falsch), Magnet-Sog ab 30 Einheiten, Einrasten ab 18.
 - **Schatzsuche** gelöscht.
+
+## Runde 12 – Bewertungs-Engine, Puzzle groß, GIF
+
+- **Schreib-Bewertung neu** (Prinzip Hanzi-Writer, pro Strich): Kinderspur wird den Soll-Strichen zugeordnet; jeder Strich muss ≥ 60 % abgedeckt sein (sonst „Strich 3 fehlt“), Genauigkeit ≥ 55 %, Start bei Punkt 1, Reihenfolge, Richtung (auch bei Kreisen). Getestet: A ohne Querstrich → fällt durch; Kritzeln → durch; falsche Reihenfolge/rückwärts → durch; alles in einem Zug richtig → besteht.
+- **Puzzle:** Zeichen füllen den Bildschirm (dicke Striche), Modi Buchstaben / Zahlen / Wörter, 10 Runden. Gleich geformte Teile (Z-Balken, E-Striche …) passen in jeden freien passenden Platz, auch umgekehrt; Ziel leuchtet beim Annähern, Magnet-Sog, Einrasten.
+- **Schreiben-Menü / Eltern:** Ursache der schmalen Spalte war `margin: auto` in einer Flex-Spalte (Kinder schrumpfen auf Inhaltsbreite) – jetzt volle Breite.
+- **Wort-Animation als GIF:** Strich für Strich, teilbar/speicherbar (gifenc, rein im Browser).

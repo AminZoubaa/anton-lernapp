@@ -1837,7 +1837,8 @@ body {
 .space { overflow: hidden; background-image: radial-gradient(#fff 1px, transparent 1px); background-size: 40px 40px; }
 .rocket-item { position: absolute; transform: translate(-50%, -50%); width: 84px; height: 84px; border-radius: 50%; background: rgba(255,255,255,0.15); border: 3px solid rgba(255,255,255,0.5); font-size: 3rem; touch-action: manipulation; }
 /* Puzzle */
-.puzzle-box { position: relative; width: min(92vw, 70vh, 520px); }
+.puzzle-box { position: relative; }
+.puzzle-area { display: flex; align-items: center; justify-content: center; overflow: hidden; touch-action: none; }
 .puzzle-svg { width: 100%; height: auto; display: block; touch-action: none; overflow: visible; }
 .puzzle-piece { cursor: grab; }
 .puzzle-piece.placed { pointer-events: none; }
@@ -1864,3 +1865,7 @@ body {
 .write-replay canvas { width: 96%; max-height: 60%; }
 .heat-bar { width: 90px; height: 16px; border-radius: 8px; background: #333; overflow: hidden; border: 2px solid #fff; }
 .heat-fill { height: 100%; background: linear-gradient(90deg, #58cc02, #ffc800, #ff4b4b); }
+
+/* Flex-Kinder mit margin:auto schrumpfen auf Inhaltsbreite – hier volle Breite erzwingen */
+.write-shell-menu .eltern-box, .eltern .eltern-box { width: 100%; margin-left: 0; margin-right: 0; max-width: none; }
+.eltern { max-width: 900px; }
