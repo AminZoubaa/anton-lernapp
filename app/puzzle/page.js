@@ -78,10 +78,10 @@ export default function Puzzle() {
   }
 
   function down(p, e) {
-    if (p.placed) return;
+    if (p.placed || drag.current) return; // nur ein Teil gleichzeitig (zweiter Finger ignoriert)
     e.currentTarget.setPointerCapture?.(e.pointerId);
     e.stopPropagation();
-    drag.current = { id: p.id, sx: e.clientX, sy: e.clientY, ox: p.dx, oy: p.dy };
+    drag.current = { id: p.id, ptr: e.pointerId, sx: e.clientX, sy: e.clientY, ox: p.dx, oy: p.dy };
   }
   // Ziel-Slots: alle noch freien Striche mit gleicher Form
   function slotsFor(p) {
@@ -100,7 +100,7 @@ export default function Puzzle() {
     return s / n < 4;
   }
   function move(e) {
-    const dr = drag.current; if (!dr) return;
+    const dr = drag.current; if (!dr || e.pointerId !== dr.ptr) return;
     const box = boxRef.current.getBoundingClientRect();
     const vbW = glyphs.length * CELL + 40;
     const k = vbW / box.width; // px → SVG-Einheiten, 1:1 unter dem Finger
@@ -118,7 +118,7 @@ export default function Puzzle() {
     }));
   }
   function up(e) {
-    const dr = drag.current; if (!dr) return; drag.current = null;
+    const dr = drag.current; if (!dr || e.pointerId !== dr.ptr) return; drag.current = null;
     setPieces((ps) => {
       const p = ps.find((x) => x.id === dr.id);
       const slots = slotsFor(p);

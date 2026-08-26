@@ -116,9 +116,12 @@ export default function Rennen() {
   }
 
   // Finger = Auto: folgt in beide Richtungen, über die ganze Fläche
+  const ptrId = useRef(null); // nur der erste Finger steuert; zweiter (Handballen) wird ignoriert
   function pointer(e) {
     const s = g.current;
     if (!s || s.over) return;
+    if (e.type === "pointerdown" && ptrId.current === null) ptrId.current = e.pointerId;
+    if (e.pointerId !== ptrId.current) return;
     const rect = areaRef.current.getBoundingClientRect();
     s.fingerX = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     s.fingerY = Math.max(0.15, Math.min(0.95, (e.clientY - rect.top) / rect.height));
@@ -522,8 +525,8 @@ export default function Rennen() {
         ref={areaRef}
         onPointerDown={(e) => { e.currentTarget.setPointerCapture?.(e.pointerId); pointer(e); }}
         onPointerMove={pointer}
-        onPointerUp={() => { if (g.current) { g.current.fingerX = null; g.current.fingerY = null; } }}
-        onPointerCancel={() => { if (g.current) { g.current.fingerX = null; g.current.fingerY = null; } }}
+        onPointerUp={(e) => { if (e.pointerId !== ptrId.current) return; ptrId.current = null; if (g.current) { g.current.fingerX = null; g.current.fingerY = null; } }}
+        onPointerCancel={(e) => { if (e.pointerId !== ptrId.current) return; ptrId.current = null; if (g.current) { g.current.fingerX = null; g.current.fingerY = null; } }}
       >
         <canvas ref={canvasRef} className="game-canvas" />
       </div>

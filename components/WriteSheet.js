@@ -18,6 +18,7 @@ export default function WriteSheet({ glyph, onNext, onMenu }) {
   const boxRef = useRef(null), canvasRef = useRef(null), raf = useRef(0);
   const cells = useRef(Array.from({ length: N }, () => [])); // Striche je Zelle (0–100 in der Zelle)
   const cur = useRef(null); // { cell, pts }
+  const activePtr = useRef(null);
   const results = useRef(null); // Bewertung je Zelle
   const geo = useRef({ ox: 0, oy: 0, cw: 0, W: 0, H: 0 });
   const [penOnly, setPenOnly] = useState(() => { try { return localStorage.getItem("write-pen-only") === "1"; } catch { return false; } });
@@ -85,20 +86,27 @@ export default function WriteSheet({ glyph, onNext, onMenu }) {
   const allowed = (e) => !(penRef.current && e.pointerType === "touch");
   const down = (e) => {
     e.preventDefault();
-    if (done || !allowed(e)) return;
+    if (done || !allowed(e) || activePtr.current !== null) return;
     const l = locate(e); if (!l) return;
+    activePtr.current = e.pointerId;
     e.currentTarget.setPointerCapture?.(e.pointerId);
     cur.current = { cell: l.cell, pts: [l.p] };
   };
   const move = (e) => {
     e.preventDefault();
-    if (!cur.current || !allowed(e)) return;
+    if (!cur.current || e.pointerId !== activePtr.current) return;
     const { cw, ox, oy } = geo.current, b = boxRef.current.getBoundingClientRect();
-    const c = cur.current.cell, x = e.clientX - b.left - ox - (c % COLS) * cw, y = e.clientY - b.top - oy - Math.floor(c / COLS) * cw;
-    cur.current.pts.push([(x / cw) * 100, (y / cw) * 100]); // bleibt der Start-Zelle zugeordnet
+    const c = cur.current.cell;
+    const evs = e.nativeEvent?.getCoalescedEvents?.() || [];
+    (evs.length ? evs : [e]).forEach((ev) => {
+      const x = ev.clientX - b.left - ox - (c % COLS) * cw, y = ev.clientY - b.top - oy - Math.floor(c / COLS) * cw;
+      cur.current.pts.push([(x / cw) * 100, (y / cw) * 100]); // bleibt der Start-Zelle zugeordnet
+    });
   };
   const up = (e) => {
     e.preventDefault();
+    if (e.pointerId !== activePtr.current) return;
+    activePtr.current = null;
     if (!cur.current) return;
     if (cur.current.pts.length > 1) cells.current[cur.current.cell] = [...cells.current[cur.current.cell], cur.current.pts];
     cur.current = null;
@@ -129,7 +137,7 @@ export default function WriteSheet({ glyph, onNext, onMenu }) {
         <span style={{ flex: 1 }} />
         <button className={`btn ${penOnly ? "" : "btn-blue"}`} style={{ minHeight: 0, padding: "6px 10px", fontSize: "0.85rem" }} onClick={togglePen}>{penOnly ? "🖊️ NUR STIFT: AN" : "🖐️ FINGER + STIFT"}</button>
       </div>
-      <div className="race-area write-area" ref={boxRef} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onTouchMove={(e) => e.preventDefault()}>
+      <div className="race-area write-area" ref={boxRef} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
         <canvas ref={canvasRef} className="game-canvas" />
         {done && <div className={`write-verdict ${done.ok >= done.total / 2 ? "good" : "bad"}`}>{done.ok} von {done.total} richtig · +{done.pts} Punkte</div>}
       </div>

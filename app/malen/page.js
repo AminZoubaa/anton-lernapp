@@ -31,6 +31,7 @@ export default function Malen() {
   const boxRef = useRef(null), canvasRef = useRef(null), raf = useRef(0);
   const strokes = useRef([]); // { color, width, alpha, pts:[[x,y]] } in CSS-Pixeln
   const cur = useRef(null);
+  const activePtr = useRef(null);
   const timer = useRef(null);
   const started = useRef(false);
   const dpr = useRef(1);
@@ -84,14 +85,19 @@ export default function Malen() {
 
   const pos = (e) => { const b = boxRef.current.getBoundingClientRect(); return [e.clientX - b.left, e.clientY - b.top]; };
   const down = (e) => {
-    e.preventDefault(); if (phase !== "draw") return;
+    e.preventDefault(); if (phase !== "draw" || activePtr.current !== null) return;
+    activePtr.current = e.pointerId;
     e.currentTarget.setPointerCapture?.(e.pointerId);
     startTimer();
     const w = tool === "marker" ? SIZES[size] * 2 : tool === "eraser" ? SIZES[size] * 2.5 : SIZES[size];
     cur.current = { color, width: w, alpha: tool === "marker" ? 0.45 : 1, eraser: tool === "eraser", pts: [pos(e)] };
   };
-  const move = (e) => { e.preventDefault(); if (cur.current) cur.current.pts.push(pos(e)); };
-  const up = (e) => { e.preventDefault(); if (!cur.current) return; strokes.current = [...strokes.current, cur.current]; cur.current = null; };
+  const move = (e) => {
+    e.preventDefault(); if (!cur.current || e.pointerId !== activePtr.current) return;
+    const evs = e.nativeEvent?.getCoalescedEvents?.() || [];
+    (evs.length ? evs : [e]).forEach((ev) => cur.current.pts.push(pos(ev)));
+  };
+  const up = (e) => { e.preventDefault(); if (e.pointerId !== activePtr.current) return; activePtr.current = null; if (!cur.current) return; strokes.current = [...strokes.current, cur.current]; cur.current = null; };
   const undo = () => { strokes.current = strokes.current.slice(0, -1); };
   const clear = () => { strokes.current = []; };
 
@@ -199,7 +205,7 @@ export default function Malen() {
         <div className="malen-colors">{COLORS.map((c) => <button key={c} className={`malen-color ${color === c && tool !== "eraser" ? "on" : ""}`} style={{ background: c }} onClick={() => { setColor(c); if (tool === "eraser") setTool("pen"); }} aria-label="Farbe" />)}</div>
         <div className="malen-sizes">{SIZES.map((s, i) => <button key={s} className={`malen-size ${size === i ? "on" : ""}`} onClick={() => setSize(i)}><span style={{ width: 6 + i * 7, height: 6 + i * 7 }} /></button>)}</div>
       </div>
-      <div className="race-area write-area malen-area" ref={boxRef} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onTouchMove={(e) => e.preventDefault()}>
+      <div className="race-area write-area malen-area" ref={boxRef} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
         <canvas ref={canvasRef} className="game-canvas" />
       </div>
       <button className="btn write-done" onClick={finish}>✅ FERTIG</button>

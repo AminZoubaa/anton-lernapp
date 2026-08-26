@@ -16,28 +16,27 @@ export default function PwaSetup({ prefix = "" }) {
     }
   }, [prefix]);
 
-  // Kein "Gummiband"-Scrollen (iOS zieht sonst die ganze Seite mit):
-  // Wischen wird nur durchgelassen, wenn ein Element wirklich scrollen kann
-  // und noch nicht an seinem Rand ist.
+  // Kein "Gummiband"-Scrollen (iOS zieht sonst die ganze Seite mit).
+  // Wichtig für flüssiges Zeichnen: die teure Prüfung (welches Element scrollt?)
+  // passiert EINMAL bei touchstart; bei touchmove nur noch Arithmetik.
   useEffect(() => {
-    let startY = 0;
-    const scrollable = (el) => {
-      while (el && el !== document.body && el !== document.documentElement) {
-        const st = getComputedStyle(el);
-        if (/(auto|scroll)/.test(st.overflowY) && el.scrollHeight > el.clientHeight + 1) return el;
-        el = el.parentElement;
+    let startY = 0, el = null, block = false;
+    const findScrollable = (t) => {
+      while (t && t !== document.body && t !== document.documentElement) {
+        if (t.classList?.contains("race-area") || t.tagName === "CANVAS" || t.tagName === "svg") return null; // Spielflächen: nie scrollen
+        const st = getComputedStyle(t);
+        if (/(auto|scroll)/.test(st.overflowY) && t.scrollHeight > t.clientHeight + 1) return t;
+        t = t.parentElement;
       }
       const doc = document.scrollingElement || document.documentElement;
       return doc.scrollHeight > doc.clientHeight + 1 ? doc : null;
     };
-    const onStart = (e) => { startY = e.touches[0].clientY; };
+    const onStart = (e) => { startY = e.touches[0].clientY; el = findScrollable(e.target); block = !el; };
     const onMove = (e) => {
       if (e.touches.length !== 1) return;
-      const el = scrollable(e.target);
-      if (!el) { e.preventDefault(); return; }
+      if (block) { e.preventDefault(); return; }
       const dy = e.touches[0].clientY - startY;
-      const atTop = el.scrollTop <= 0, atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
-      if ((dy > 0 && atTop) || (dy < 0 && atBottom)) e.preventDefault();
+      if ((dy > 0 && el.scrollTop <= 0) || (dy < 0 && el.scrollTop + el.clientHeight >= el.scrollHeight - 1)) e.preventDefault();
     };
     document.addEventListener("touchstart", onStart, { passive: true });
     document.addEventListener("touchmove", onMove, { passive: false });

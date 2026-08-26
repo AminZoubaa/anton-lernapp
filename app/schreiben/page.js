@@ -11,7 +11,7 @@
 //   Wortes als Animation + Speichern als Bild.
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { STROKES, WRITE_WORDS, WORD_EMOJI, samplePath, scoreGlyph } from "@/lib/strokes";
+import { STROKES, WRITE_WORDS, WORD_EMOJI, samplePath, scoreGlyph, TOL } from "@/lib/strokes";
 import { speak, speakSeq, stopSpeaking } from "@/lib/speech";
 import { playPop, playCorrect, playWrong, playFanfare, unlockAudio } from "@/lib/sfx";
 import { enableWakeLock, disableWakeLock } from "@/lib/wakeLock";
@@ -56,6 +56,9 @@ export default function Schreiben() {
   const judgeTimer = useRef(null);
   const judged = useRef(false);
   const fb = useRef(null); // farbiges Feedback nach der Bewertung
+  const liveRef = useRef(null); // { refs, hits, outside } – wächst beim Zeichnen mit
+  const activePtr = useRef(null); // nur EIN Finger/Stift zeichnet; zweiter Finger (Handballen) wird ignoriert
+  const liveTick = useRef(0);
   const [live, setLive] = useState(null); // Prozent-Anzeige nach jedem Strich
   const [askDone, setAskDone] = useState(false); // "Fertig? Grüner Knopf!"
   const askedRef = useRef(false);
@@ -73,7 +76,7 @@ export default function Schreiben() {
     strokesDrawn.current = [];
     cur.current = [];
     judged.current = false;
-    fb.current = null; setLive(null); setAskDone(false); askedRef.current = false;
+    fb.current = null; liveRef.current = null; activePtr.current = null; setLive(null); setAskDone(false); askedRef.current = false;
     setVerdict(null);
     demoT.current = 0;
     setTutorial(withTutorial);
@@ -125,7 +128,8 @@ export default function Schreiben() {
       [0.1, 0.5, 0.9].forEach((k) => { ctx.beginPath(); ctx.moveTo(ox, oy + S * k); ctx.lineTo(ox + S, oy + S * k); ctx.stroke(); });
       ctx.lineCap = "round"; ctx.lineJoin = "round";
       // Schablone + nummerierte Startpunkte (immer sichtbar, dezent)
-      ctx.strokeStyle = "#e3e3e3"; ctx.lineWidth = S * 0.11;
+      // Schablone = die erlaubte Bahn (genau so breit wie die Toleranz der Bewertung)
+      ctx.strokeStyle = "#e6e6e6"; ctx.lineWidth = S * (TOL * 2) / 100;
       strokes.forEach((st) => { path(st); ctx.stroke(); });
       if (tutorial) strokes.forEach((st, i) => {
         const [sx, sy] = P(st[0]);
@@ -162,23 +166,36 @@ export default function Schreiben() {
           speak("Jetzt du!");
         }
       }
+      // Live: getroffene Bahn wird grün, während gezeichnet wird
+      const L = liveRef.current, f = fb.current;
+      if (L && !tutorial) {
+        ctx.lineWidth = S * (TOL * 2) / 100; ctx.strokeStyle = "rgba(88,204,2,0.35)";
+        L.refs.forEach((r, si) => {
+          let run = [];
+          const flush = () => { if (run.length > 1) { path(run); ctx.stroke(); } run = []; };
+          r.forEach((pt, k) => { if (L.hits[si][k]) run.push(pt); else flush(); });
+          flush();
+        });
+      }
       // Kinderspur
-      const f = fb.current;
       ctx.strokeStyle = f ? (f.pass ? "#58cc02" : "#ff9600") : "#ff9600";
       ctx.lineWidth = S * 0.07;
       strokesDrawn.current.forEach((st) => { if (st.length > 1) { path(st); ctx.stroke(); } });
       if (cur.current.length > 1) { path(cur.current); ctx.stroke(); }
-      // Feedback: getroffene Bahn grün, Lücken rot, Daneben-Punkte rot
+      // Daneben: sofort rot markieren (auch während des Zeichnens)
+      if (L && !tutorial) {
+        ctx.fillStyle = "rgba(255,40,40,0.8)";
+        L.outside.forEach((p) => { const [x, y] = P(p); ctx.beginPath(); ctx.arc(x, y, S * 0.022, 0, Math.PI * 2); ctx.fill(); });
+      }
+      // Nach der Bewertung: Lücken in der Bahn rot
       if (f) {
-        ctx.lineWidth = S * 0.035;
+        ctx.lineWidth = S * 0.035; ctx.strokeStyle = "#ff4b4b";
         f.refs.forEach((r, si) => {
           for (let k = 1; k < r.length; k++) {
-            ctx.strokeStyle = f.hits[si][k] && f.hits[si][k - 1] ? "#2bb673" : "#ff4b4b";
+            if (f.hits[si][k] && f.hits[si][k - 1]) continue;
             ctx.beginPath(); const [ax, ay] = P(r[k - 1]); const [bx, by] = P(r[k]); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
           }
         });
-        ctx.fillStyle = "rgba(255,75,75,0.75)";
-        f.outside.forEach((p) => { const [x, y] = P(p); ctx.beginPath(); ctx.arc(x, y, S * 0.02, 0, Math.PI * 2); ctx.fill(); });
       }
       raf.current = requestAnimationFrame(loop);
     };
@@ -192,18 +209,45 @@ export default function Schreiben() {
     const S = Math.min(b.width, b.height) * 0.88, ox = (b.width - S) / 2, oy = (b.height - S) / 2;
     return [((e.clientX - b.left - ox) / S) * 100, ((e.clientY - b.top - oy) / S) * 100];
   }
+  // Live-Auswertung eines neuen Punktes: nahe Bahnpunkte als getroffen markieren,
+  // Punkt ohne Bahn in der Nähe als "daneben" merken. Billig genug für jedes Move-Event.
+  function ensureLive() {
+    if (!liveRef.current) liveRef.current = { refs: strokes.map((st) => samplePath(st, 1.5)), hits: strokes.map((st) => samplePath(st, 1.5).map(() => false)), outside: [], lastOut: null };
+    return liveRef.current;
+  }
+  function feedPoint(p) {
+    const L = ensureLive(); let any = false;
+    L.refs.forEach((r, si) => r.forEach((q, k) => { if (Math.hypot(q[0] - p[0], q[1] - p[1]) <= TOL) { L.hits[si][k] = true; any = true; } }));
+    if (!any && (!L.lastOut || Math.hypot(L.lastOut[0] - p[0], L.lastOut[1] - p[1]) >= 1.5)) { L.outside.push(p); L.lastOut = p; }
+  }
+  function recomputeLive() {
+    liveRef.current = null; ensureLive();
+    strokesDrawn.current.forEach((st) => samplePath(st, 1.5).forEach(feedPoint));
+  }
   function down(e) {
     e.preventDefault();
     if (judged.current) return;
+    if (activePtr.current !== null) return; // zweiter Finger (Handballen): ignorieren
     if (tutorial) { setTutorial(false); demoT.current = 0; stopSpeaking(); } // Platz frei machen
     clearTimeout(judgeTimer.current);
     setAskDone(false);
+    activePtr.current = e.pointerId;
     e.currentTarget.setPointerCapture?.(e.pointerId);
     drawing.current = true; cur.current = [toBox(e)];
+    feedPoint(cur.current[0]);
   }
-  function move(e) { e.preventDefault(); if (drawing.current) cur.current.push(toBox(e)); }
+  function move(e) {
+    e.preventDefault();
+    if (!drawing.current || e.pointerId !== activePtr.current) return;
+    const evs = e.nativeEvent?.getCoalescedEvents?.() || [];
+    (evs.length ? evs : [e]).forEach((ev) => { const p = toBox(ev); cur.current.push(p); feedPoint(p); });
+    const now = performance.now();
+    if (now - liveTick.current > 150) { liveTick.current = now; const L = liveRef.current; const flat = L.hits.flat(); setLive({ coverage: flat.filter(Boolean).length / flat.length, outside: L.outside.length }); }
+  }
   function up(e) {
     e.preventDefault();
+    if (e.pointerId !== activePtr.current) return;
+    activePtr.current = null;
     if (!drawing.current) return;
     drawing.current = false;
     if (cur.current.length > 1) strokesDrawn.current = [...strokesDrawn.current, cur.current];
@@ -247,7 +291,7 @@ export default function Schreiben() {
       judged.current = true; playWrong();
       setVerdict({ score: 0, text: `${r.why} ${info}` });
       speak(r.precision < 0.6 || r.excess > 4 ? "Das war zu viel daneben. Ich wische alles weg. Schreib es bitte noch einmal, schön auf der Bahn." : "Da fehlte noch ein Stück. Ich wische alles weg. Schreib es bitte noch einmal ganz.");
-      setTimeout(() => { strokesDrawn.current = []; cur.current = []; fb.current = null; judged.current = false; setLive(null); setVerdict(null); }, 2600);
+      setTimeout(() => { strokesDrawn.current = []; cur.current = []; fb.current = null; liveRef.current = null; judged.current = false; setLive(null); setVerdict(null); }, 2600);
     }
   }
 
@@ -269,9 +313,9 @@ export default function Schreiben() {
     }
   }
 
-  function showTutorial() { strokesDrawn.current = []; cur.current = []; judged.current = false; fb.current = null; setLive(null); setVerdict(null); demoT.current = 0; setTutorial(true); speak("Schau zu!"); }
-  function clearAll() { clearTimeout(judgeTimer.current); strokesDrawn.current = []; cur.current = []; judged.current = false; fb.current = null; setLive(null); setVerdict(null); speak("Alles weg. Nochmal!"); }
-  function undoStroke() { clearTimeout(judgeTimer.current); strokesDrawn.current = strokesDrawn.current.slice(0, -1); judged.current = false; fb.current = null; setVerdict(null); updateLive(); }
+  function showTutorial() { strokesDrawn.current = []; cur.current = []; judged.current = false; fb.current = null; liveRef.current = null; setLive(null); setVerdict(null); demoT.current = 0; setTutorial(true); speak("Schau zu!"); }
+  function clearAll() { clearTimeout(judgeTimer.current); strokesDrawn.current = []; cur.current = []; judged.current = false; fb.current = null; liveRef.current = null; setLive(null); setVerdict(null); speak("Alles weg. Nochmal!"); }
+  function undoStroke() { clearTimeout(judgeTimer.current); strokesDrawn.current = strokesDrawn.current.slice(0, -1); judged.current = false; fb.current = null; setVerdict(null); recomputeLive(); updateLive(); }
   function updateLive() {
     if (!strokesDrawn.current.length) { setLive(null); return; }
     const r = scoreGlyph(strokesDrawn.current, strokes);
@@ -463,10 +507,10 @@ export default function Schreiben() {
         <span style={{ flex: 1 }} />
         <span className="write-step">{strokes.length} {strokes.length === 1 ? "Strich" : "Striche"}</span>
       </div>
-      <div className="race-area write-area" ref={boxRef} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onTouchMove={(e) => e.preventDefault()}>
+      <div className="race-area write-area" ref={boxRef} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
         <canvas ref={canvasRef} className="game-canvas" />
         {tutorial && <div className="write-hint">👀 Schau zu … (tippe, um selbst zu schreiben)</div>}
-        {!tutorial && !verdict && <div className={`write-hint ${askDone ? "ask" : "go"}`}>{askDone ? "Fertig? Dann drück den grünen Knopf ⬇️" : `✏️ Mal das ${glyph} nach${live ? ` · 🎯 ${Math.round(live.coverage * 100)} %` : ""}`}</div>}
+        {!tutorial && !verdict && <div className={`write-hint ${askDone ? "ask" : "go"}`}>{askDone ? "Fertig? Dann drück den grünen Knopf ⬇️" : `✏️ ${glyph}${live ? ` · 🎯 ${Math.round(live.coverage * 100)} %${live.outside > 3 || (live.precision != null && live.precision < 0.9) ? " · 🔴 daneben" : ""}` : " nachmalen"}`}</div>}
         {verdict && <div className={`write-verdict ${verdict.score >= 0.65 ? "good" : "bad"}`}>{verdict.text}</div>}
       </div>
       <button className={`btn write-done ${askDone ? "ask" : ""}`} onClick={judge}>✅ FERTIG{askDone ? " – BIST DU FERTIG?" : ""}</button>

@@ -222,3 +222,14 @@ Getestet mit simulierten Spuren (gut/wackelig/ein Zug/rückwärts/doppelt/halb/K
   - **📖 LERNEN:** Land für Land mit Steckbrief: Flagge, Hauptstadt, Sprache, Einwohner, Größenbalken (Vergleich zum größten Land der Karte), Anteil an der Weltlandfläche, Vergleich zu Deutschland („3-mal so groß“), ein Fun-Fact – alles vorgelesen. Vor/Zurück.
   - **🏳️ FLAGGE:** Quiz nach Führerschein-App-Prinzip: drei große Flaggen, Land wird auf der Karte gezeigt, falsche Fragen werden 3 Aufgaben später erneut gestellt.
   - Gelernte Länder bekommen ab mittlerem Zoom ihren Namen auf der Karte.
+
+## Runde 18 – Touch-Aussetzer über alle Spiele, Live-Genauigkeit beim Schreiben
+
+**Ursachen der Touch-Hänger („hört mittendrin auf, 300 ms später eine zufällige Linie“):**
+1. Ein zweiter Berührungspunkt (Handballen, zweiter Finger) löste ein neues `pointerdown` aus → der laufende Strich wurde verworfen und der erste Finger schrieb in den neuen Strich weiter (Sprung). Jetzt zeichnet/steuert nur EIN Pointer (ID-Guard) in Schreiben, Übungsblatt, Malen, Rennen, Puzzle, Welt.
+2. Der globale Anti-Gummiband-Handler prüfte bei JEDEM touchmove per `getComputedStyle` die Elternkette – synchron auf dem Main-Thread, das bremst Touch-Events. Jetzt einmal bei touchstart bestimmen, bei touchmove nur Arithmetik; Spielflächen (`race-area`, Canvas, SVG) werden sofort blockiert.
+3. iOS-Lupen-/Kontextmenü bei langem Drücken (`-webkit-touch-callout`) unterbrach Striche → global abgeschaltet, Tap-Highlight entfernt.
+4. `onTouchMove={preventDefault}` in React ist passiv und wirkungslos → entfernt, `touch-action: none` auf allen Spielflächen erzwungen.
+5. Zeichnen nutzt jetzt `getCoalescedEvents()` – alle Zwischenpunkte, keine Ecken bei schnellen Bewegungen.
+
+**Schreiben, Genauigkeit live:** Die graue Schablone ist jetzt exakt die erlaubte Bahn (Breite = 2 × Toleranz). Beim Zeichnen färbt sich die getroffene Bahn sofort grün, jeder Punkt daneben bekommt sofort einen roten Punkt, die Kopfzeile zeigt fortlaufend „🎯 72 % · 🔴 daneben“. Toleranz für „daneben“ von 10,8 auf 9 Einheiten verschärft (identisch mit der sichtbaren Bahn). Nach FERTIG werden Lücken in der Bahn rot nachgezeichnet.

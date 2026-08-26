@@ -37,7 +37,10 @@ body {
   overscroll-behavior: none;
   user-select: none;
   -webkit-user-select: none;
+  -webkit-touch-callout: none; /* iOS: kein Lupen-/Kontextmenü bei langem Drücken – stoppte Touch-Striche */
+  -webkit-tap-highlight-color: transparent;
 }
+.race-area, .game-canvas, .welt-svg { touch-action: none; -webkit-touch-callout: none; }
 
 button {
   font-family: inherit;
