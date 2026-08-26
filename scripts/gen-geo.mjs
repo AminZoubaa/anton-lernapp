@@ -26,7 +26,8 @@ function build(list, projection, W, H, file, src = countries) {
     }
     const [cx, cy] = path.centroid(main);
     const b = path.bounds(main);
-    return { id: c.id, name: c.name, flag: c.flag, d: path(f), cx: +cx.toFixed(1), cy: +cy.toFixed(1), size: +Math.max(b[1][0] - b[0][0], b[1][1] - b[0][1]).toFixed(1) };
+    return { id: c.id, name: c.name, flag: c.flag, d: path(f), cx: +cx.toFixed(1), cy: +cy.toFixed(1), size: +Math.max(b[1][0] - b[0][0], b[1][1] - b[0][1]).toFixed(1),
+      bx: +b[0][0].toFixed(1), by: +b[0][1].toFixed(1), bw: +(b[1][0] - b[0][0]).toFixed(1), bh: +(b[1][1] - b[0][1]).toFixed(1) };
   }).filter(Boolean);
   const out = { w: W, h: H, land: path(land), all: countriesLow.features.map((f) => path(f)).join(""), countries: feats };
   writeFileSync(file, JSON.stringify(out));

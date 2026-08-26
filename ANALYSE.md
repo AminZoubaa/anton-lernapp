@@ -211,3 +211,14 @@ Getestet mit simulierten Spuren (gut/wackelig/ein Zug/rückwärts/doppelt/halb/K
 - **Replay-Bug:** In der Abspiel-Animation stand `pi += 2` – jedes zweite Teilstück wurde übersprungen (Lücken, einzelne Punkte, „falsche Zeichen“). Jetzt wird jedes Teilstück gezeichnet, 3 pro Frame; eigener Timer statt des geteilten `raf`. Dieselbe Lücke war auch im GIF (`i += 3` mit Sprung) – ebenfalls behoben; GIF: 6 Punkte je Frame, 30 ms, kürzere Pausen → schneller und kleiner.
 - **🎨 Malen** (`app/malen/page.js`): freies Zeichnen, 60 s ab dem ersten Strich („Noch zehn Sekunden“), 10 Farben, 3 Dicken, Stift/Marker/Radierer, Zurück/Alles weg. Beim Fertigstellen wird auf die Bounding-Box aller Striche (+ halbe Strichdicke) plus 8 px Rand zugeschnitten, das Bild in 2× Auflösung gerendert; GIF max. 480 px, ~150 Frames, 25 ms je Frame. Ergebnis-Seite zeigt Vorschau und Pixelgröße.
 - **Artikel:** zentral in `forSpeech` (speech.js): „das 2“, „das ZWEI“, „dem 1“ → „die Zwei“, „der Eins“; Buchstaben bleiben sächlich („das A“). Gilt für alle Spiele, Lektionen und Trainer.
+
+## Runde 17 – Rennen entschärft, Welt-Entdecker neu gebaut
+
+- **Rennen:** Rüstung sechsmal seltener (Gewicht 3 → 0,5) und höchstens 1 statt 3. Ein falsches Zeichen kostet jetzt IMMER Combo und 3 Punkte – auch mit Schild oder Rüstung. Schutz verhindert nur das verlorene Herz; „einfach alles einsammeln“ lohnt sich nicht mehr.
+- **Welt** komplett neu (`app/welt/page.js`, Daten `lib/countries.js`):
+  - Karte zoombar (Pinch mit zwei Fingern, +/−/⛶-Knöpfe) und verschiebbar; Tippen und Ziehen sauber getrennt (8 px Schwelle). Linienstärke skaliert mit dem Zoom, alle Länder mit sichtbaren Grenzen, Ziel-Länder in Pastellfarben.
+  - Jede Aufgabe fährt die Karte automatisch an: Lernen/Flagge/Puzzle auf das Land; Finden auf eine Region, in der das Land irgendwo (nicht mittig) liegt, damit die Zoomfahrt nichts verrät.
+  - Prominente Aufgabenkarte oben (FINDE **Italien**, WELCHE FLAGGE HAT **Spanien?**, Flagge + Name), Tippen wiederholt die Ansage.
+  - **📖 LERNEN:** Land für Land mit Steckbrief: Flagge, Hauptstadt, Sprache, Einwohner, Größenbalken (Vergleich zum größten Land der Karte), Anteil an der Weltlandfläche, Vergleich zu Deutschland („3-mal so groß“), ein Fun-Fact – alles vorgelesen. Vor/Zurück.
+  - **🏳️ FLAGGE:** Quiz nach Führerschein-App-Prinzip: drei große Flaggen, Land wird auf der Karte gezeigt, falsche Fragen werden 3 Aufgaben später erneut gestellt.
+  - Gelernte Länder bekommen ab mittlerem Zoom ihren Namen auf der Karte.

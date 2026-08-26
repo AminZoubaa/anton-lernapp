@@ -41,7 +41,7 @@ const ITEMS = [
   { kind: "gift", emoji: "🎁", w: 5 },
   { kind: "star", emoji: "⭐", w: 3 },
   { kind: "heart", emoji: "❤️", w: 3 },
-  { kind: "armor", emoji: "🛡️", w: 3 },
+  { kind: "armor", emoji: "🛡️", w: 0.5 }, // selten – sonst sammelt man alles ohne hinzuschauen
   { kind: "banana", emoji: "🍌", w: 4 },
   { kind: "bomb", emoji: "💣", w: 3 },
 ];
@@ -278,7 +278,13 @@ export default function Rennen() {
               s.reveal = { letter: s.target, t: 0, pauseUntil: 2.0 };
               speakSeq([{ text: "Hey! Neuer Buchstabe!" }, { pause: 150 }, { text: `${say(s.target)}!`, opts: { rate: 0.95, pitch: 1.2 } }]);
             } else if (s.combo % 3 !== 0) speak(`${say(sg.letter)}!`, { rate: 1.05, pitch: 1.05 });
-          } else loseHeart(s, sx, sg.y, `Das war ${say(sg.letter)}, nicht ${say(s.target)}!`);
+          } else {
+            // Falsches Zeichen kostet IMMER Combo und Punkte – auch mit Schild/Rüstung.
+            // Schutz verhindert nur das verlorene Herz, nicht das Lernen.
+            s.combo = 0; s.score = Math.max(0, s.score - 3);
+            if (s.shield > 0 || s.armor > 0) s.popups.push({ x: sx, y: sg.y - 40, text: `Falsch: ${sg.letter} −3`, color: "#ff2d2d", life: 1.2 });
+            loseHeart(s, sx, sg.y, `Das war ${say(sg.letter)}, nicht ${say(s.target)}!`);
+          }
           continue;
         }
         if (sg.y < H + 80) keep.push(sg);
@@ -292,7 +298,7 @@ export default function Rennen() {
           if (it.kind === "gift") { s.score += 25; s.popups.push({ x: ix, y: it.y, text: "+25 🎁", color: "#2fbf2f", life: 1 }); burst(ix, it.y, 16, ["#ff86d0", "#ffc800"]); playPop(); speak("Geschenk!"); }
           else if (it.kind === "star") { s.shield = 5; s.popups.push({ x: ix, y: it.y, text: "SCHILD 5s ⭐", color: "#1cb0f6", life: 1.2 }); burst(ix, it.y, 16, ["#9ad8ff", "#fff"]); playPop(); speak("Schutzschild!"); }
           else if (it.kind === "heart") { if (s.lives < MAX_HEARTS) s.lives += 1; s.popups.push({ x: ix, y: it.y, text: "+1 ❤️", color: "#ff2d6b", life: 1 }); burst(ix, it.y, 12, ["#ff2d6b", "#fff"]); playCorrect(); speak("Ein Herz!"); }
-          else if (it.kind === "armor") { s.armor = Math.min(3, s.armor + 1); s.popups.push({ x: ix, y: it.y, text: "RÜSTUNG +1 🛡️", color: "#666", life: 1.2 }); burst(ix, it.y, 12, ["#bbb", "#888"]); playPop(); speak("Rüstung!"); }
+          else if (it.kind === "armor") { s.armor = Math.min(1, s.armor + 1); s.popups.push({ x: ix, y: it.y, text: "RÜSTUNG +1 🛡️", color: "#666", life: 1.2 }); burst(ix, it.y, 12, ["#bbb", "#888"]); playPop(); speak("Rüstung!"); }
           else if (it.kind === "banana") { if (s.shield <= 0) { s.slip = 2; s.score = Math.max(0, s.score - 10); s.popups.push({ x: ix, y: it.y, text: "−10 🍌 Rutsch!", color: "#ff2d2d", life: 1.2 }); playWrong(); speak("Ups, Bananenschale!"); } else burst(ix, it.y, 10, ["#ffe066"]); }
           else if (it.kind === "bomb") { burst(ix, it.y, 30, ["#ff9600", "#ff4b4b", "#333"], 340); s.shake = 0.6; loseHeart(s, ix, it.y, "Bumm! Eine Bombe!"); }
           continue;
