@@ -1869,3 +1869,16 @@ body {
 /* Flex-Kinder mit margin:auto schrumpfen auf Inhaltsbreite – hier volle Breite erzwingen */
 .write-shell-menu .eltern-box, .eltern .eltern-box { width: 100%; margin-left: 0; margin-right: 0; max-width: none; }
 .eltern { max-width: 900px; }
+
+/* Schreiben: großer Fertig-Knopf, Frage, eigene Wörter */
+.write-done { display: block; width: calc(100% - 24px); margin: 8px 12px 0; font-size: 1.3rem; padding: 14px; }
+.write-done.ask { animation: pulse-soft 0.9s infinite; box-shadow: 0 0 0 6px rgba(88,204,2,0.35); }
+.write-hint.ask { background: #ffdd57; color: #1f2a44; animation: pulse-soft 0.9s infinite; }
+.write-add { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+.write-add input { font: inherit; font-size: 1.1rem; font-weight: 700; padding: 10px 12px; border: 2px solid #cfd8e3; border-radius: 12px; width: 220px; text-transform: uppercase; }
+.write-custom-list { width: 100%; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.write-custom-list span { background: #eef3ff; border-radius: 999px; padding: 6px 10px; font-weight: 700; display: inline-flex; gap: 6px; align-items: center; }
+.write-custom-list button { background: #ff4b4b; color: #fff; border-radius: 50%; width: 24px; height: 24px; font-weight: 800; }
+/* Kein Gummiband-Scrollen in der App (Vollbild-Gefühl) */
+html { overscroll-behavior: none; height: 100%; }
+body { overscroll-behavior: none; height: 100%; }

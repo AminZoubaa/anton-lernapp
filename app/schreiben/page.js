@@ -20,6 +20,7 @@ import { addPoints } from "@/lib/progress";
 import { confettiRain } from "@/lib/fx";
 import { pickFrom, PRAISE } from "@/lib/phrases";
 import { GIFEncoder, quantize, applyPalette } from "gifenc";
+import WriteSheet from "@/components/WriteSheet";
 
 const LETTERS = [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"];
 const DIGITS = [..."0123456789"];
@@ -27,6 +28,7 @@ const PROGRESS_KEY = "anton-lernapp-writing-v1";
 const SEEN_KEY = "anton-lernapp-writing-tutorial-v1";
 
 
+const CUSTOM_KEY = "write-custom-words";
 const loadJson = (k, d) => { try { return JSON.parse(localStorage.getItem(k) || JSON.stringify(d)); } catch { return d; } };
 
 export default function Schreiben() {
@@ -37,6 +39,10 @@ export default function Schreiben() {
   const [tutorial, setTutorial] = useState(false); // Animation läuft
   const [verdict, setVerdict] = useState(null);
   const [best, setBest] = useState({});
+  const [custom, setCustom] = useState([]); // eigene Wörter [{ w, e }]
+  const [sheetMode, setSheetMode] = useState(false); // Übungsblatt 9× statt Einzelzeichen
+  const [sheetGlyph, setSheetGlyph] = useState("A");
+  const [newWord, setNewWord] = useState(""); const [newEmoji, setNewEmoji] = useState(""); const [addOpen, setAddOpen] = useState(false);
   const canvasRef = useRef(null);
   const boxRef = useRef(null);
   const replayRef = useRef(null);
@@ -50,12 +56,15 @@ export default function Schreiben() {
   const judged = useRef(false);
   const fb = useRef(null); // farbiges Feedback nach der Bewertung
   const [live, setLive] = useState(null); // Prozent-Anzeige nach jedem Strich
+  const [askDone, setAskDone] = useState(false); // "Fertig? Grüner Knopf!"
+  const askedRef = useRef(false);
   const glyph = queue[qi];
   const strokes = glyph ? STROKES[glyph] || [] : [];
   const wordEmoji = queue.length > 1 && queue.length <= 8 ? WORD_EMOJI[queue.join("")] || "⭐" : null;
 
   useEffect(() => {
     setBest(loadJson(PROGRESS_KEY, {}));
+    setCustom(loadJson(CUSTOM_KEY, []));
     return () => { cancelAnimationFrame(raf.current); stopSpeaking(); disableWakeLock(); clearTimeout(judgeTimer.current); };
   }, []);
 
@@ -63,11 +72,13 @@ export default function Schreiben() {
     strokesDrawn.current = [];
     cur.current = [];
     judged.current = false;
-    fb.current = null; setLive(null);
+    fb.current = null; setLive(null); setAskDone(false); askedRef.current = false;
     setVerdict(null);
     demoT.current = 0;
     setTutorial(withTutorial);
   }
+
+  function startSheet(c) { unlockAudio(); enableWakeLock(); setSheetGlyph(c); setPhase("sheet"); }
 
   function start(chars) {
     unlockAudio(); enableWakeLock();
@@ -185,7 +196,7 @@ export default function Schreiben() {
     if (judged.current) return;
     if (tutorial) { setTutorial(false); demoT.current = 0; stopSpeaking(); } // Platz frei machen
     clearTimeout(judgeTimer.current);
-    if (fb.current) { fb.current = null; setVerdict(null); } // nach "Nochmal": weiterzeichnen erlaubt
+    setAskDone(false);
     e.currentTarget.setPointerCapture?.(e.pointerId);
     drawing.current = true; cur.current = [toBox(e)];
   }
@@ -196,11 +207,16 @@ export default function Schreiben() {
     drawing.current = false;
     if (cur.current.length > 1) strokesDrawn.current = [...strokesDrawn.current, cur.current];
     cur.current = [];
-    // KEIN Zeitlimit. Bewertet wird über ✅ FERTIG – oder automatisch,
-    // sobald der Buchstabe sicher vollständig und sauber ist.
+    // KEIN Zeitlimit und keine automatische Bewertung. Wenn der Buchstabe
+    // vollständig aussieht, wird nur gefragt: "Fertig? Dann grüner Knopf!"
     const r = updateLive();
     clearTimeout(judgeTimer.current);
-    if (r && r.coverage >= 0.95 && r.precision >= 0.9) judgeTimer.current = setTimeout(judge, 700);
+    setAskDone(false);
+    if (r && r.coverage >= 0.8) judgeTimer.current = setTimeout(() => {
+      if (judged.current) return;
+      setAskDone(true);
+      if (!askedRef.current) { askedRef.current = true; speak("Bist du fertig? Dann drück auf den grünen Knopf!"); }
+    }, 2000);
   }
 
   function judge() {
@@ -226,11 +242,11 @@ export default function Schreiben() {
       speak("Gut. Das geht noch genauer, aber weiter!");
       setTimeout(nextGlyph, 1800);
     } else {
-      // Nicht bestanden: Spur bleibt stehen, rote Stellen zeigen, weiterzeichnen erlaubt
-      playWrong();
+      // Nicht bestanden: kurz zeigen, was fehlte (rot), dann alles löschen und neu schreiben
+      judged.current = true; playWrong();
       setVerdict({ score: 0, text: `${r.why} ${info}` });
-      if (r.precision < 0.6 || r.excess > 4) { speak("Zu viel daneben. Wisch weg und versuch es nochmal."); setTimeout(() => { if (fb.current === r) clearAll(); }, 2200); }
-      else speak("Da fehlt noch etwas. Mal die roten Stellen nach, dann drück auf Fertig.");
+      speak(r.precision < 0.6 || r.excess > 4 ? "Das war zu viel daneben. Ich wische alles weg. Schreib es bitte noch einmal, schön auf der Bahn." : "Da fehlte noch ein Stück. Ich wische alles weg. Schreib es bitte noch einmal ganz.");
+      setTimeout(() => { strokesDrawn.current = []; cur.current = []; fb.current = null; judged.current = false; setLive(null); setVerdict(null); }, 2600);
     }
   }
 
@@ -340,21 +356,46 @@ export default function Schreiben() {
 
   if (phase === "menu") {
     const name = (loadName() || "").toUpperCase().replace(/[^A-Z]/g, "");
-    const words = [...(name.length >= 2 ? [name] : []), ...WRITE_WORDS];
+    const words = [...(name.length >= 2 ? [name] : []), ...WRITE_WORDS, ...custom.map((c) => c.w)];
+    const emojiOf = (w) => (custom.find((c) => c.w === w)?.e) || WORD_EMOJI[w];
+    const addWord = () => {
+      const w = newWord.toUpperCase().replace(/[^A-Z0-9]/g, "");
+      if (w.length < 2 || words.includes(w)) { setNewWord(""); return; }
+      const list = [...custom, { w, e: newEmoji.trim() }];
+      setCustom(list); localStorage.setItem(CUSTOM_KEY, JSON.stringify(list));
+      setNewWord(""); setNewEmoji("");
+    };
+    const delWord = (w) => { const list = custom.filter((c) => c.w !== w); setCustom(list); localStorage.setItem(CUSTOM_KEY, JSON.stringify(list)); };
     return (
       <main className="shell write-shell-menu">
         <header className="home-header">
           <div className="home-title">✏️ Schreiben</div>
           <div className="home-sub">Tippe einen Buchstaben, eine Zahl oder ein Wort</div>
         </header>
+        <section className="eltern-box" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <strong>Wie üben?</strong>
+          <button className={`btn ${!sheetMode ? "" : "btn-blue"}`} style={{ minHeight: 0, padding: "8px 14px" }} onClick={() => setSheetMode(false)}>🔍 GROSS · 1×</button>
+          <button className={`btn ${sheetMode ? "" : "btn-blue"}`} style={{ minHeight: 0, padding: "8px 14px" }} onClick={() => setSheetMode(true)}>📝 ÜBUNGSBLATT · 9× (STIFT)</button>
+        </section>
         <section className="eltern-box"><h3>Buchstaben <button className="btn" style={{ minHeight: 0, padding: "6px 12px", fontSize: "0.9rem", marginLeft: 8 }} onClick={() => start(LETTERS)}>🔤 ALLE A–Z ÜBEN</button></h3>
-          <div className="write-grid">{LETTERS.map((c) => <button key={c} className={`write-tile ${best[c] ? "done" : ""}`} onClick={() => start([c])}>{c}{best[c] > 0 && <span className="write-check">✓</span>}</button>)}</div>
+          <div className="write-grid">{LETTERS.map((c) => <button key={c} className={`write-tile ${best[c] ? "done" : ""}`} onClick={() => (sheetMode ? startSheet(c) : start([c]))}>{c}{best[c] > 0 && <span className="write-check">✓</span>}</button>)}</div>
         </section>
         <section className="eltern-box"><h3>Zahlen <button className="btn" style={{ minHeight: 0, padding: "6px 12px", fontSize: "0.9rem", marginLeft: 8 }} onClick={() => start(DIGITS)}>🔢 ALLE 0–9 ÜBEN</button></h3>
-          <div className="write-grid">{DIGITS.map((c) => <button key={c} className={`write-tile ${best[c] ? "done" : ""}`} onClick={() => start([c])}>{c}</button>)}</div>
+          <div className="write-grid">{DIGITS.map((c) => <button key={c} className={`write-tile ${best[c] ? "done" : ""}`} onClick={() => (sheetMode ? startSheet(c) : start([c]))}>{c}</button>)}</div>
         </section>
         <section className="eltern-box"><h3>Wörter</h3>
-          <div className="write-words">{words.map((w) => <button key={w} className="btn btn-blue" onClick={() => start([...w])}><span>{w === name ? "⭐" : WORD_EMOJI[w] || "✏️"}</span>{w}</button>)}</div>
+          <div className="write-words">{words.map((w) => <button key={w} className="btn btn-blue" onClick={() => start([...w])}><span>{w === name ? "⭐" : emojiOf(w) || "✏️"}</span>{w}</button>)}</div>
+          <div style={{ marginTop: 12 }}>
+            {!addOpen ? <button className="btn btn-blue" style={{ minHeight: 0, padding: "8px 14px", fontSize: "0.95rem" }} onClick={() => setAddOpen(true)}>➕ EIGENES WORT HINZUFÜGEN</button> : (
+              <div className="write-add">
+                <input value={newWord} onChange={(e) => setNewWord(e.target.value)} placeholder="WORT (nur A–Z, 0–9)" maxLength={12} autoCapitalize="characters" />
+                <input value={newEmoji} onChange={(e) => setNewEmoji(e.target.value)} placeholder="Bild 🐶 (optional)" maxLength={3} style={{ width: 130 }} />
+                <button className="btn" style={{ minHeight: 0, padding: "8px 14px" }} onClick={addWord}>HINZUFÜGEN</button>
+                <button className="btn btn-blue" style={{ minHeight: 0, padding: "8px 14px" }} onClick={() => setAddOpen(false)}>SCHLIESSEN</button>
+                {custom.length > 0 && <div className="write-custom-list">{custom.map((c) => <span key={c.w}>{c.e} {c.w} <button onClick={() => delWord(c.w)} aria-label="löschen">✕</button></span>)}</div>}
+              </div>
+            )}
+          </div>
         </section>
         <button className="btn btn-blue" style={{ margin: "10px auto 30px", display: "block" }} onClick={() => router.push("/")}>⬅️ ZURÜCK</button>
       </main>
@@ -377,6 +418,12 @@ export default function Schreiben() {
       </div>
     );
   if (phase === "replay-reset") return <div className="race-shell write-shell" />;
+
+  if (phase === "sheet") {
+    const list = DIGITS.includes(sheetGlyph) ? DIGITS : LETTERS;
+    const nxt = list[(list.indexOf(sheetGlyph) + 1) % list.length];
+    return <WriteSheet key={sheetGlyph} glyph={sheetGlyph} onNext={() => setSheetGlyph(nxt)} onMenu={() => setPhase("menu")} />;
+  }
 
   if (phase === "next") {
     const list = DIGITS.includes(glyph) ? DIGITS : LETTERS;
@@ -412,14 +459,14 @@ export default function Schreiben() {
       <div className="race-area write-area" ref={boxRef} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onTouchMove={(e) => e.preventDefault()}>
         <canvas ref={canvasRef} className="game-canvas" />
         {tutorial && <div className="write-hint">👀 Schau zu … (tippe, um selbst zu schreiben)</div>}
-        {!tutorial && !verdict && <div className="write-hint go">✏️ Mal das {glyph} nach{live ? ` · 🎯 ${Math.round(live.coverage * 100)} %` : ""}</div>}
+        {!tutorial && !verdict && <div className={`write-hint ${askDone ? "ask" : "go"}`}>{askDone ? "Fertig? Dann drück den grünen Knopf ⬇️" : `✏️ Mal das ${glyph} nach${live ? ` · 🎯 ${Math.round(live.coverage * 100)} %` : ""}`}</div>}
         {verdict && <div className={`write-verdict ${verdict.score >= 0.65 ? "good" : "bad"}`}>{verdict.text}</div>}
       </div>
+      <button className={`btn write-done ${askDone ? "ask" : ""}`} onClick={judge}>✅ FERTIG{askDone ? " – BIST DU FERTIG?" : ""}</button>
       <div className="write-bar">
         <button className="btn btn-blue" onClick={showTutorial}>👀 HILFE</button>
         <button className="btn btn-blue" onClick={undoStroke}>↩️ STRICH ZURÜCK</button>
         <button className="btn btn-blue" onClick={clearAll}>🧽 ALLES WEG</button>
-        <button className="btn" onClick={judge}>✅ FERTIG</button>
         <button className="btn btn-blue" onClick={() => speak(`Das ist das ${glyph}!`)}>🔊 {glyph}</button>
       </div>
     </div>
