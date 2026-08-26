@@ -86,7 +86,8 @@ export default function WriteSheet({ glyph, onNext, onMenu }) {
   const allowed = (e) => !(penRef.current && e.pointerType === "touch");
   const down = (e) => {
     e.preventDefault();
-    if (done || !allowed(e) || activePtr.current !== null) return;
+    if (done || !allowed(e) || !e.isPrimary) return;
+    if (cur.current && activePtr.current !== null && activePtr.current !== e.pointerId) finish(); // hängender Strich
     const l = locate(e); if (!l) return;
     activePtr.current = e.pointerId;
     e.currentTarget.setPointerCapture?.(e.pointerId);
@@ -103,9 +104,8 @@ export default function WriteSheet({ glyph, onNext, onMenu }) {
       cur.current.pts.push([(x / cw) * 100, (y / cw) * 100]); // bleibt der Start-Zelle zugeordnet
     });
   };
-  const up = (e) => {
-    e.preventDefault();
-    if (e.pointerId !== activePtr.current) return;
+  const up = (e) => { e.preventDefault(); if (e.pointerId !== activePtr.current) return; finish(); };
+  const finish = () => {
     activePtr.current = null;
     if (!cur.current) return;
     if (cur.current.pts.length > 1) cells.current[cur.current.cell] = [...cells.current[cur.current.cell], cur.current.pts];

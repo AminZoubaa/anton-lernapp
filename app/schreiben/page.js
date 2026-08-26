@@ -227,7 +227,10 @@ export default function Schreiben() {
   function down(e) {
     e.preventDefault();
     if (judged.current) return;
-    if (activePtr.current !== null) return; // zweiter Finger (Handballen): ignorieren
+    if (!e.isPrimary) return; // zweiter Finger (Handballen): ignorieren
+    // Hängt noch ein alter Strich (pointerup kam nie/spät)? Dann sauber abschließen,
+    // statt den neuen Strich zu verschlucken.
+    if (drawing.current && activePtr.current !== null && activePtr.current !== e.pointerId) finishStroke();
     if (tutorial) { setTutorial(false); demoT.current = 0; stopSpeaking(); } // Platz frei machen
     clearTimeout(judgeTimer.current);
     setAskDone(false);
@@ -247,6 +250,9 @@ export default function Schreiben() {
   function up(e) {
     e.preventDefault();
     if (e.pointerId !== activePtr.current) return;
+    finishStroke();
+  }
+  function finishStroke() {
     activePtr.current = null;
     if (!drawing.current) return;
     drawing.current = false;

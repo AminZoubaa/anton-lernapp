@@ -85,7 +85,8 @@ export default function Malen() {
 
   const pos = (e) => { const b = boxRef.current.getBoundingClientRect(); return [e.clientX - b.left, e.clientY - b.top]; };
   const down = (e) => {
-    e.preventDefault(); if (phase !== "draw" || activePtr.current !== null) return;
+    e.preventDefault(); if (phase !== "draw" || !e.isPrimary) return;
+    if (cur.current && activePtr.current !== null && activePtr.current !== e.pointerId) finishStroke(); // hängender Strich
     activePtr.current = e.pointerId;
     e.currentTarget.setPointerCapture?.(e.pointerId);
     startTimer();
@@ -97,7 +98,8 @@ export default function Malen() {
     const evs = e.nativeEvent?.getCoalescedEvents?.() || [];
     (evs.length ? evs : [e]).forEach((ev) => cur.current.pts.push(pos(ev)));
   };
-  const up = (e) => { e.preventDefault(); if (e.pointerId !== activePtr.current) return; activePtr.current = null; if (!cur.current) return; strokes.current = [...strokes.current, cur.current]; cur.current = null; };
+  const finishStroke = () => { activePtr.current = null; if (!cur.current) return; strokes.current = [...strokes.current, cur.current]; cur.current = null; };
+  const up = (e) => { e.preventDefault(); if (e.pointerId !== activePtr.current) return; finishStroke(); };
   const undo = () => { strokes.current = strokes.current.slice(0, -1); };
   const clear = () => { strokes.current = []; };
 

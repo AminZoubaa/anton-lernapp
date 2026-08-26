@@ -233,3 +233,6 @@ Getestet mit simulierten Spuren (gut/wackelig/ein Zug/rückwärts/doppelt/halb/K
 5. Zeichnen nutzt jetzt `getCoalescedEvents()` – alle Zwischenpunkte, keine Ecken bei schnellen Bewegungen.
 
 **Schreiben, Genauigkeit live:** Die graue Schablone ist jetzt exakt die erlaubte Bahn (Breite = 2 × Toleranz). Beim Zeichnen färbt sich die getroffene Bahn sofort grün, jeder Punkt daneben bekommt sofort einen roten Punkt, die Kopfzeile zeigt fortlaufend „🎯 72 % · 🔴 daneben“. Toleranz für „daneben“ von 10,8 auf 9 Einheiten verschärft (identisch mit der sichtbaren Bahn). Nach FERTIG werden Lücken in der Bahn rot nachgezeichnet.
+
+### Nachtrag Runde 18 – „letzter Strich vom E erscheint erst beim nächsten Strich“
+Ursache: Auf iOS kommt das `pointerup` eines schnellen Strichs manchmal verspätet. Mein Ein-Pointer-Guard hielt den alten Pointer dann für „noch aktiv“ und verwarf den neuen Strich; erst wenn das späte `pointerup` eintraf, lief der nächste Strich wieder – daher „der Strich erscheint verspätet, und dann doppelt“. Jetzt: Handballen-Erkennung über `isPrimary` (zweiter Berührungspunkt = nicht primär → ignoriert); kommt ein neuer primärer Strich, während ein alter noch hängt, wird der alte sauber abgeschlossen und der neue sofort gestartet. Gleiches in Übungsblatt und Malen.
