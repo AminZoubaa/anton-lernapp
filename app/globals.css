@@ -1882,3 +1882,11 @@ body {
 /* Kein Gummiband-Scrollen in der App (Vollbild-Gefühl) */
 html { overscroll-behavior: none; height: 100%; }
 body { overscroll-behavior: none; height: 100%; }
+/* Welt-Entdecker */
+.welt-shell { background: #bfe3ff; }
+.welt-area { display: flex; align-items: center; justify-content: center; touch-action: none; user-select: none; -webkit-user-select: none; }
+.welt-svg { width: 100%; height: 100%; display: block; }
+.welt-target { display: flex; align-items: center; gap: 8px; }
+.welt-hint { animation: welt-blink 0.7s infinite; }
+.welt-piece { filter: drop-shadow(0 4px 3px rgba(0,0,0,0.35)); }
+@keyframes welt-blink { 0%, 100% { fill: #ffdd57; } 50% { fill: #ff9600; } }

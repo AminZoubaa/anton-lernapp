@@ -195,3 +195,13 @@ Vorher wurde pro Strich Reihenfolge, Richtung und Startpunkt erzwungen und nach 
 - **Nicht bestanden:** Spur bleibt stehen, das Kind malt die roten Stellen einfach nach und drückt erneut FERTIG. Nur bei „zu viel daneben“ wird gelöscht.
 - Nummerierte Startpunkte gibt es nur noch in der Hilfe-Animation (Empfehlung), nicht mehr auf der Schreibfläche.
 Getestet mit simulierten Spuren (gut/wackelig/ein Zug/rückwärts/doppelt/halb/Kritzel/Buchstabe+Kritzel) für 9 Zeichen.
+
+## Runde 15 – Schreiben nachgebessert, Übungsblatt, eigene Wörter, Welt-Spiel, Scroll-Sperre
+
+- **Bewertungs-Bug gefunden:** Die Überfüllungs-Bremse zählte Punkte statt Streckenlänge. Langsames, sorgfältiges Malen liefert vom Finger sehr viele Punkte → „100 % getroffen, 0 % daneben“ und trotzdem durchgefallen. Jetzt wird die Kinderspur ausgedünnt und die echte Streckenlänge mit der Bahnlänge verglichen (gilt zentral in `scoreGlyph`, also für alle Zeichen und beide Modi).
+- Großer grüner **FERTIG-Knopf** direkt unter dem Papier. Wenn der Buchstabe zu ≥80 % gemalt ist und 2 s nichts passiert: Frage „Bist du fertig? Dann grüner Knopf!“ (Sprache + gelber Hinweis + pulsierender Knopf). Keine automatische Bewertung.
+- **Fehlversuch:** rot zeigen, erklären, alles löschen, neu schreiben (kein Nachbessern mehr).
+- **Übungsblatt 9×** (`components/WriteSheet.js`): 3 Reihen à 3 Kästchen, Schablone wird von Kästchen zu Kästchen blasser (wie ein Schreibheft), jedes Kästchen einzeln bewertet, Punkte = Sterne × 3 je Kästchen. Schalter **NUR STIFT** (Touch wird ignoriert, Hand darf aufliegen; wird gemerkt).
+- **Eigene Wörter:** im Schreib-Menü „➕ EIGENES WORT HINZUFÜGEN“ (A–Z, 0–9, optional Bild-Emoji), gespeichert in localStorage, löschbar.
+- **Kein Gummiband-Scrollen:** `PwaSetup` fängt touchmove ab, außer ein Element kann wirklich scrollen und ist nicht am Rand.
+- **🌍 Welt** (`app/welt/page.js`): echte Karten aus world-atlas (`scripts/gen-geo.mjs` → `public/geo/europa.json`, `welt.json`, je ~200 KB, offline gecacht). Europa 28 Länder (Kegelprojektion, geprüft), Welt 29 Länder. Spielarten FINDEN (Land antippen), FLAGGE (Flagge → Land), PUZZLE (ausgeschnittenes Land als magnetisches Teil an seinen Platz ziehen). Nach 2 Fehlern blinkt das Ziel. Gefundene Länder werden grün und zeigen ihre Flagge; 10 Runden, Bestenliste.
