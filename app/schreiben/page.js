@@ -50,6 +50,7 @@ export default function Schreiben() {
   const cur = useRef([]); // aktueller Strich
   const wordDrawings = useRef([]); // pro Buchstabe: Striche (für Replay)
   const raf = useRef(0);
+  const replayTimer = useRef(0);
   const demoT = useRef(0);
   const drawing = useRef(false);
   const judgeTimer = useRef(null);
@@ -290,16 +291,19 @@ export default function Schreiben() {
     // alle Punkte in Reihenfolge, mit Buchstaben-Versatz
     const seq = [];
     wordDrawings.current.forEach((d, li) => d.strokes.forEach((st) => seq.push(st.map(([x, y]) => [pad + li * cell + (x / 100) * cell, pad + (y / 100) * cell]))));
+    // Fehler vorher: pi += 2 übersprang jedes zweite Teilstück (Lücken, Punkte).
+    // Jetzt: 3 Teilstücke pro Frame, jedes einzelne gezeichnet.
     let si = 0, pi = 1;
     const step = () => {
       if (si >= seq.length) return;
       const st = seq[si];
-      ctx.beginPath(); ctx.moveTo(st[pi - 1][0], st[pi - 1][1]); ctx.lineTo(st[pi][0], st[pi][1]); ctx.stroke();
-      pi += 2;
-      if (pi >= st.length) { si++; pi = 1; raf.current = setTimeout(step, 250); } else raf.current = requestAnimationFrame(step);
+      for (let k = 0; k < 3 && pi < st.length; k++, pi++) {
+        ctx.beginPath(); ctx.moveTo(st[pi - 1][0], st[pi - 1][1]); ctx.lineTo(st[pi][0], st[pi][1]); ctx.stroke();
+      }
+      if (pi >= st.length) { si++; pi = 1; replayTimer.current = setTimeout(step, 180); } else replayTimer.current = requestAnimationFrame(step);
     };
-    step();
-    return () => { cancelAnimationFrame(raf.current); clearTimeout(raf.current); };
+    replayTimer.current = requestAnimationFrame(step);
+    return () => { cancelAnimationFrame(replayTimer.current); clearTimeout(replayTimer.current); };
   }, [phase]);
 
   // Animiertes GIF der Wort-Animation (Strich für Strich), zum Teilen
@@ -328,14 +332,17 @@ export default function Schreiben() {
       ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
       frame(300);
       for (const st of seq) {
-        for (let i = 1; i < st.length; i += 3) {
-          ctx.beginPath(); ctx.moveTo(st[Math.max(0, i - 3)][0], st[Math.max(0, i - 3)][1]); ctx.lineTo(st[i][0], st[i][1]); ctx.stroke();
-          frame(40);
+        // 6 Punkte pro Frame, alle Teilstücke gezeichnet (keine Lücken), 30 ms/Frame
+        for (let i = 1; i < st.length; i += 6) {
+          ctx.beginPath(); ctx.moveTo(st[i - 1][0], st[i - 1][1]);
+          for (let k = i; k < Math.min(st.length, i + 6); k++) ctx.lineTo(st[k][0], st[k][1]);
+          ctx.stroke();
+          frame(30);
         }
         ctx.beginPath(); ctx.moveTo(st[st.length - 2][0], st[st.length - 2][1]); ctx.lineTo(st[st.length - 1][0], st[st.length - 1][1]); ctx.stroke();
-        frame(250);
+        frame(200);
       }
-      frame(1500);
+      frame(1200);
       gif.finish();
       const blob = new Blob([gif.bytes()], { type: "image/gif" });
       const file = new File([blob], `${queue.join("")}.gif`, { type: "image/gif" });

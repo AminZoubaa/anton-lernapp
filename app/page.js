@@ -164,6 +164,9 @@ export default function Home() {
         <Link href="/welt" style={{ textDecoration: "none" }}>
           <div className="game-node" style={{ background: "linear-gradient(135deg, #1cb0f6, #58cc02)" }}>🌍 WELT</div>
         </Link>
+        <Link href="/malen" style={{ textDecoration: "none" }}>
+          <div className="game-node" style={{ background: "linear-gradient(135deg, #ff7fbf, #ce82ff)" }}>🎨 MALEN</div>
+        </Link>
         <Link href="/schreiben" style={{ textDecoration: "none" }}>
           <div className="game-node" style={{ background: "linear-gradient(135deg, #1f2a44, #4a6cf7)" }}>✏️ SCHREIBEN</div>
         </Link>

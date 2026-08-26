@@ -205,3 +205,9 @@ Getestet mit simulierten Spuren (gut/wackelig/ein Zug/rückwärts/doppelt/halb/K
 - **Eigene Wörter:** im Schreib-Menü „➕ EIGENES WORT HINZUFÜGEN“ (A–Z, 0–9, optional Bild-Emoji), gespeichert in localStorage, löschbar.
 - **Kein Gummiband-Scrollen:** `PwaSetup` fängt touchmove ab, außer ein Element kann wirklich scrollen und ist nicht am Rand.
 - **🌍 Welt** (`app/welt/page.js`): echte Karten aus world-atlas (`scripts/gen-geo.mjs` → `public/geo/europa.json`, `welt.json`, je ~200 KB, offline gecacht). Europa 28 Länder (Kegelprojektion, geprüft), Welt 29 Länder. Spielarten FINDEN (Land antippen), FLAGGE (Flagge → Land), PUZZLE (ausgeschnittenes Land als magnetisches Teil an seinen Platz ziehen). Nach 2 Fehlern blinkt das Ziel. Gefundene Länder werden grün und zeigen ihre Flagge; 10 Runden, Bestenliste.
+
+## Runde 16 – Wort-Replay repariert, GIF schneller, Mal-App, Artikel
+
+- **Replay-Bug:** In der Abspiel-Animation stand `pi += 2` – jedes zweite Teilstück wurde übersprungen (Lücken, einzelne Punkte, „falsche Zeichen“). Jetzt wird jedes Teilstück gezeichnet, 3 pro Frame; eigener Timer statt des geteilten `raf`. Dieselbe Lücke war auch im GIF (`i += 3` mit Sprung) – ebenfalls behoben; GIF: 6 Punkte je Frame, 30 ms, kürzere Pausen → schneller und kleiner.
+- **🎨 Malen** (`app/malen/page.js`): freies Zeichnen, 60 s ab dem ersten Strich („Noch zehn Sekunden“), 10 Farben, 3 Dicken, Stift/Marker/Radierer, Zurück/Alles weg. Beim Fertigstellen wird auf die Bounding-Box aller Striche (+ halbe Strichdicke) plus 8 px Rand zugeschnitten, das Bild in 2× Auflösung gerendert; GIF max. 480 px, ~150 Frames, 25 ms je Frame. Ergebnis-Seite zeigt Vorschau und Pixelgröße.
+- **Artikel:** zentral in `forSpeech` (speech.js): „das 2“, „das ZWEI“, „dem 1“ → „die Zwei“, „der Eins“; Buchstaben bleiben sächlich („das A“). Gilt für alle Spiele, Lektionen und Trainer.
