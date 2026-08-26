@@ -183,3 +183,15 @@ Was eine wirklich gute, kostenlose Offline-Frauenstimme bräuchte: ein „medium
 
 Alle 36 Bahnen als Bild gerendert und kontrolliert (`schreibbahnen.png`). Fehler behoben: **C** und **G** standen auf dem Kopf (Bogen lief unten herum), **U** lief über den Kopf, **6** war eine Schleife mit Strich, **S** hatte einen Knick. Zusätzlich auf Schul-Schreibrichtung umgestellt: **A** beginnt an der Spitze (zwei Striche nach unten), **M/N/V/W** alle senkrechten/schrägen Striche von oben nach unten. Bewertung mit verwackelten Test-Spuren für 12 Zeichen nachgeprüft (richtig = bestanden, fehlender Strich = durchgefallen, alles in einem Zug = bestanden).
 Durchgangs-Modus: „ALLE A–Z ÜBEN“ / „ALLE 0–9 ÜBEN“ rotiert endlos; nach einem einzelnen Zeichen erscheint „NÄCHSTER: D ➡️“ (Nochmal / Menü).
+
+## Runde 14 – Schreibtrainer: Bewertung neu gedacht (Maskenvergleich)
+
+Vorher wurde pro Strich Reihenfolge, Richtung und Startpunkt erzwungen und nach 1,3 s Pause automatisch bewertet – das führte zu Fehlermeldungen bei korrekt gemalten Buchstaben und zu Frust. Jetzt (Prinzip wie bei Nachspur-Apps, z. B. LetterSchool):
+- **Nur zwei Größen zählen:** Abdeckung (wie viel Prozent der Bahn getroffen) und Daneben (wie viel Prozent der Spur außerhalb). Dazu eine Überfüllungs-Bremse: Wer den ganzen Bildschirm vollmalt, hat den Buchstaben nicht geschafft (Spur darf höchstens ~3–4× so lang sein wie die Bahn).
+- **Keine Reihenfolge, keine Richtung, keine Strichanzahl** – ein Zug oder zehn, vorwärts oder rückwärts, egal.
+- **Kein Zeitlimit.** Bewertet wird nur über ✅ FERTIG – oder automatisch, wenn der Buchstabe sicher fertig ist (≥95 % getroffen, ≤10 % daneben).
+- **Sterne:** ⭐⭐⭐ ≥90 % / ≤15 % daneben · ⭐⭐ ≥75 % / ≤28 % · ⭐ ≥55 % / ≤40 %. „Perfekt“ nur bei 3 Sternen, sonst „Super“ / „Gut“.
+- **Sichtbares Ergebnis:** Nach FERTIG wird die Bahn grün (getroffen) und rot (Lücke) nachgezeichnet, Daneben-Punkte rot markiert, dazu „87 % getroffen · 5 % daneben“. Nach jedem Strich zeigt die Kopfzeile den aktuellen Prozentstand (🎯 72 %).
+- **Nicht bestanden:** Spur bleibt stehen, das Kind malt die roten Stellen einfach nach und drückt erneut FERTIG. Nur bei „zu viel daneben“ wird gelöscht.
+- Nummerierte Startpunkte gibt es nur noch in der Hilfe-Animation (Empfehlung), nicht mehr auf der Schreibfläche.
+Getestet mit simulierten Spuren (gut/wackelig/ein Zug/rückwärts/doppelt/halb/Kritzel/Buchstabe+Kritzel) für 9 Zeichen.

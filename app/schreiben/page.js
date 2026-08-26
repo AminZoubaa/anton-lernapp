@@ -25,7 +25,7 @@ const LETTERS = [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"];
 const DIGITS = [..."0123456789"];
 const PROGRESS_KEY = "anton-lernapp-writing-v1";
 const SEEN_KEY = "anton-lernapp-writing-tutorial-v1";
-const IDLE_JUDGE_MS = 1300;
+
 
 const loadJson = (k, d) => { try { return JSON.parse(localStorage.getItem(k) || JSON.stringify(d)); } catch { return d; } };
 
@@ -48,6 +48,8 @@ export default function Schreiben() {
   const drawing = useRef(false);
   const judgeTimer = useRef(null);
   const judged = useRef(false);
+  const fb = useRef(null); // farbiges Feedback nach der Bewertung
+  const [live, setLive] = useState(null); // Prozent-Anzeige nach jedem Strich
   const glyph = queue[qi];
   const strokes = glyph ? STROKES[glyph] || [] : [];
   const wordEmoji = queue.length > 1 && queue.length <= 8 ? WORD_EMOJI[queue.join("")] || "⭐" : null;
@@ -61,6 +63,7 @@ export default function Schreiben() {
     strokesDrawn.current = [];
     cur.current = [];
     judged.current = false;
+    fb.current = null; setLive(null);
     setVerdict(null);
     demoT.current = 0;
     setTutorial(withTutorial);
@@ -112,7 +115,7 @@ export default function Schreiben() {
       // Schablone + nummerierte Startpunkte (immer sichtbar, dezent)
       ctx.strokeStyle = "#e3e3e3"; ctx.lineWidth = S * 0.11;
       strokes.forEach((st) => { path(st); ctx.stroke(); });
-      strokes.forEach((st, i) => {
+      if (tutorial) strokes.forEach((st, i) => {
         const [sx, sy] = P(st[0]);
         ctx.fillStyle = i === 0 ? "#58cc02" : "#ff9600";
         ctx.beginPath(); ctx.arc(sx, sy, S * 0.045, 0, Math.PI * 2); ctx.fill();
@@ -144,15 +147,27 @@ export default function Schreiben() {
         if (t > strokes.length * per + 0.6) {
           setTutorial(false);
           const seen = loadJson(SEEN_KEY, {}); seen[glyph] = true; localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
-          speak("Jetzt du! Starte beim grünen Punkt.");
+          speak("Jetzt du!");
         }
       }
       // Kinderspur
-      const bad = verdict && verdict.score < 0.65;
-      ctx.strokeStyle = verdict ? (bad ? "#ff4b4b" : "#58cc02") : "#ff9600";
+      const f = fb.current;
+      ctx.strokeStyle = f ? (f.pass ? "#58cc02" : "#ff9600") : "#ff9600";
       ctx.lineWidth = S * 0.07;
       strokesDrawn.current.forEach((st) => { if (st.length > 1) { path(st); ctx.stroke(); } });
       if (cur.current.length > 1) { path(cur.current); ctx.stroke(); }
+      // Feedback: getroffene Bahn grün, Lücken rot, Daneben-Punkte rot
+      if (f) {
+        ctx.lineWidth = S * 0.035;
+        f.refs.forEach((r, si) => {
+          for (let k = 1; k < r.length; k++) {
+            ctx.strokeStyle = f.hits[si][k] && f.hits[si][k - 1] ? "#2bb673" : "#ff4b4b";
+            ctx.beginPath(); const [ax, ay] = P(r[k - 1]); const [bx, by] = P(r[k]); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+          }
+        });
+        ctx.fillStyle = "rgba(255,75,75,0.75)";
+        f.outside.forEach((p) => { const [x, y] = P(p); ctx.beginPath(); ctx.arc(x, y, S * 0.02, 0, Math.PI * 2); ctx.fill(); });
+      }
       raf.current = requestAnimationFrame(loop);
     };
     raf.current = requestAnimationFrame(loop);
@@ -170,6 +185,7 @@ export default function Schreiben() {
     if (judged.current) return;
     if (tutorial) { setTutorial(false); demoT.current = 0; stopSpeaking(); } // Platz frei machen
     clearTimeout(judgeTimer.current);
+    if (fb.current) { fb.current = null; setVerdict(null); } // nach "Nochmal": weiterzeichnen erlaubt
     e.currentTarget.setPointerCapture?.(e.pointerId);
     drawing.current = true; cur.current = [toBox(e)];
   }
@@ -180,29 +196,41 @@ export default function Schreiben() {
     drawing.current = false;
     if (cur.current.length > 1) strokesDrawn.current = [...strokesDrawn.current, cur.current];
     cur.current = [];
-    // Nach kurzer Pause automatisch bewerten – oder sofort über ✓
+    // KEIN Zeitlimit. Bewertet wird über ✅ FERTIG – oder automatisch,
+    // sobald der Buchstabe sicher vollständig und sauber ist.
+    const r = updateLive();
     clearTimeout(judgeTimer.current);
-    judgeTimer.current = setTimeout(judge, IDLE_JUDGE_MS);
+    if (r && r.coverage >= 0.95 && r.precision >= 0.9) judgeTimer.current = setTimeout(judge, 700);
   }
 
   function judge() {
     clearTimeout(judgeTimer.current);
     if (judged.current || !strokesDrawn.current.length) return;
     const r = scoreGlyph(strokesDrawn.current, strokes);
-    judged.current = true;
-    if (r.pass && r.score >= 0.88 && r.minCov >= 0.85 && r.precision >= 0.8) {
-      playCorrect(); setVerdict({ score: 1, text: "Perfekt! ⭐⭐⭐" });
+    fb.current = r;
+    const pct = Math.round(r.coverage * 100), out = Math.round((1 - r.precision) * 100);
+    const info = `${pct} % getroffen · ${out} % daneben`;
+    if (r.stars === 3) {
+      judged.current = true; playCorrect();
+      setVerdict({ score: 1, text: `Perfekt! ⭐⭐⭐ ${info}` });
       speak(`Perfekt! ${pickFrom(PRAISE)}`);
-      setTimeout(nextGlyph, 1200);
-    } else if (r.pass) {
-      playPop(); setVerdict({ score: 0.7, text: "Gut gemacht! ⭐⭐" });
-      speak("Gut gemacht!");
-      setTimeout(nextGlyph, 1200);
+      setTimeout(nextGlyph, 1600);
+    } else if (r.stars === 2) {
+      judged.current = true; playCorrect();
+      setVerdict({ score: 0.7, text: `Super! ⭐⭐ ${info}` });
+      speak("Super!");
+      setTimeout(nextGlyph, 1600);
+    } else if (r.stars === 1) {
+      judged.current = true; playPop();
+      setVerdict({ score: 0.4, text: `Gut! ⭐ ${info}` });
+      speak("Gut. Das geht noch genauer, aber weiter!");
+      setTimeout(nextGlyph, 1800);
     } else {
+      // Nicht bestanden: Spur bleibt stehen, rote Stellen zeigen, weiterzeichnen erlaubt
       playWrong();
-      setVerdict({ score: 0, text: `Nochmal! ${r.why}` });
-      speak(`Versuch es noch einmal. ${r.why} Mit dem Augen-Knopf bekommst du Hilfe.`);
-      setTimeout(() => { strokesDrawn.current = []; judged.current = false; setVerdict(null); }, 1800);
+      setVerdict({ score: 0, text: `${r.why} ${info}` });
+      if (r.precision < 0.6 || r.excess > 4) { speak("Zu viel daneben. Wisch weg und versuch es nochmal."); setTimeout(() => { if (fb.current === r) clearAll(); }, 2200); }
+      else speak("Da fehlt noch etwas. Mal die roten Stellen nach, dann drück auf Fertig.");
     }
   }
 
@@ -224,9 +252,15 @@ export default function Schreiben() {
     }
   }
 
-  function showTutorial() { strokesDrawn.current = []; cur.current = []; judged.current = false; setVerdict(null); demoT.current = 0; setTutorial(true); speak("Schau zu!"); }
-  function clearAll() { clearTimeout(judgeTimer.current); strokesDrawn.current = []; cur.current = []; judged.current = false; setVerdict(null); speak("Alles weg. Nochmal!"); }
-  function undoStroke() { clearTimeout(judgeTimer.current); strokesDrawn.current = strokesDrawn.current.slice(0, -1); judged.current = false; setVerdict(null); }
+  function showTutorial() { strokesDrawn.current = []; cur.current = []; judged.current = false; fb.current = null; setLive(null); setVerdict(null); demoT.current = 0; setTutorial(true); speak("Schau zu!"); }
+  function clearAll() { clearTimeout(judgeTimer.current); strokesDrawn.current = []; cur.current = []; judged.current = false; fb.current = null; setLive(null); setVerdict(null); speak("Alles weg. Nochmal!"); }
+  function undoStroke() { clearTimeout(judgeTimer.current); strokesDrawn.current = strokesDrawn.current.slice(0, -1); judged.current = false; fb.current = null; setVerdict(null); updateLive(); }
+  function updateLive() {
+    if (!strokesDrawn.current.length) { setLive(null); return; }
+    const r = scoreGlyph(strokesDrawn.current, strokes);
+    setLive(r);
+    return r;
+  }
 
   // ---------- Wort-Replay: alle Buchstaben nebeneinander, nacheinander animiert ----------
   useEffect(() => {
@@ -378,7 +412,7 @@ export default function Schreiben() {
       <div className="race-area write-area" ref={boxRef} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onTouchMove={(e) => e.preventDefault()}>
         <canvas ref={canvasRef} className="game-canvas" />
         {tutorial && <div className="write-hint">👀 Schau zu … (tippe, um selbst zu schreiben)</div>}
-        {!tutorial && !verdict && <div className="write-hint go">✏️ Schreib das {glyph} – Start beim grünen Punkt 1</div>}
+        {!tutorial && !verdict && <div className="write-hint go">✏️ Mal das {glyph} nach{live ? ` · 🎯 ${Math.round(live.coverage * 100)} %` : ""}</div>}
         {verdict && <div className={`write-verdict ${verdict.score >= 0.65 ? "good" : "bad"}`}>{verdict.text}</div>}
       </div>
       <div className="write-bar">
