@@ -63,6 +63,7 @@ export default function Rennen() {
   const [hud, setHud] = useState({ score: 0, lives: 3, target: "A", combo: 0, armor: 0, vehicle: "🚗", shield: false });
   const [result, setResult] = useState(null);
   const pool = useRef(["A", "B", "C", "D", "E"]);
+  const ptrId = useRef(null); // steuernder Finger (Handballen/zweiter Finger wird ignoriert)
 
   useEffect(() => {
     pool.current = playableLetters();
@@ -97,6 +98,8 @@ export default function Rennen() {
     };
     setHud({ score: 0, lives: 3, target, combo: 0, armor: 0, vehicle: "🚗", shield: false });
     setResult(null);
+    ptrId.current = null;
+    cancelAnimationFrame(raf.current);
     setPhase("play");
     speakSeq([{ text: "Drei" }, { pause: 650 }, { text: "Zwei" }, { pause: 650 }, { text: "Eins" }, { pause: 500 }, { text: "Los geht's!" }, { pause: 200 }, { text: `Sammle alle ${say(target)}!` }]);
   }
@@ -105,6 +108,7 @@ export default function Rennen() {
     const s = g.current;
     if (!s || s.over) return;
     s.over = true;
+    ptrId.current = null;
     cancelAnimationFrame(raf.current);
     stopMusic();
     playFanfare();
@@ -116,11 +120,12 @@ export default function Rennen() {
   }
 
   // Finger = Auto: folgt in beide Richtungen, über die ganze Fläche
-  const ptrId = useRef(null); // nur der erste Finger steuert; zweiter (Handballen) wird ignoriert
   function pointer(e) {
     const s = g.current;
     if (!s || s.over) return;
-    if (e.type === "pointerdown" && ptrId.current === null) ptrId.current = e.pointerId;
+    // Erster/primärer Finger steuert. Ein neuer primärer Finger übernimmt sofort
+    // (falls das pointerup des alten verloren ging – sonst "hängt" das Auto).
+    if (e.type === "pointerdown") { if (!e.isPrimary) return; ptrId.current = e.pointerId; }
     if (e.pointerId !== ptrId.current) return;
     const rect = areaRef.current.getBoundingClientRect();
     s.fingerX = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
